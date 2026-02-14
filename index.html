@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -37,6 +36,7 @@
         .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; cursor: pointer; }
         .track-row:hover { background: #080808; }
         .track-row.active { color: var(--active); background: #0a0000; }
+        .track-row.dragging { opacity: 0.4; border: 1px dashed var(--active); }
         .t-name { flex-grow: 1; }
         .t-remove { color: #333; transition: 0.2s; font-size: 18px !important; }
         .t-remove:hover { color: var(--active); }
@@ -146,6 +146,7 @@
     <script>
         let db, library = [], curV = null, curT = null, audio = new Audio();
         let audioCtx, nodes = {}, isCrossfading = false;
+        let draggedTrackIdx = null;
 
         const req = indexedDB.open("ObsidianStudio", 7);
         req.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains("projects")) e.target.result.createObjectStore("projects", { keyPath: "id", autoIncrement: true }); };
@@ -157,7 +158,7 @@
             renderSidebar(); renderGrid();
         }
 
-        // --- DRAG AND DROP FIX ---
+        // --- DRAG AND DROP FIX (FILES) ---
         const dz = document.getElementById('dropZone');
         dz.onclick = () => document.getElementById('fileIn').click();
         
@@ -280,6 +281,35 @@
             db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
         }
 
+        // --- REORGANIZE DRAG AND DROP HANDLERS ---
+        function handleDragStart(e, index) {
+            draggedTrackIdx = index;
+            e.currentTarget.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(e, targetIdx) {
+            e.preventDefault();
+            if (draggedTrackIdx === null || draggedTrackIdx === targetIdx) return;
+
+            const tracks = library[curV].tracks;
+            const movedItem = tracks.splice(draggedTrackIdx, 1)[0];
+            tracks.splice(targetIdx, 0, movedItem);
+
+            // Adjust curT if the playing track moved
+            if (curT === draggedTrackIdx) curT = targetIdx;
+            else if (draggedTrackIdx < curT && targetIdx >= curT) curT--;
+            else if (draggedTrackIdx > curT && targetIdx <= curT) curT++;
+
+            db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
+            draggedTrackIdx = null;
+        }
+
         function renderProject(idx) {
             curV = idx; const p = library[idx];
             showState('vaultState');
@@ -288,9 +318,19 @@
             const img = document.getElementById('vCover');
             if(p.cover) { img.src = p.cover; img.style.display = 'block'; document.getElementById('vIcon').style.display = 'none'; }
             else { img.style.display = 'none'; document.getElementById('vIcon').style.display = 'block'; }
+            
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
-                const row = document.createElement('div'); row.className = `track-row ${curT === i && library[curV].id === p.id ? 'active' : ''}`;
+                const row = document.createElement('div'); 
+                row.className = `track-row ${curT === i && library[curV].id === p.id ? 'active' : ''}`;
+                row.draggable = true;
+                
+                // Drag Events
+                row.ondragstart = (e) => handleDragStart(e, i);
+                row.ondragover = (e) => handleDragOver(e);
+                row.ondrop = (e) => handleDrop(e, i);
+                row.ondragend = (e) => e.currentTarget.classList.remove('dragging');
+                
                 row.onclick = () => playTrack(idx, i);
                 row.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">play_arrow</span><div class="t-name">${t.title}</div><span class="material-symbols-outlined t-remove" onclick="removeTrack(${i}, event)">delete_forever</span>`;
                 list.appendChild(row);
