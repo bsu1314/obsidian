@@ -2,115 +2,246 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[obsidian] - OFFLINE</title>
+    <title>[obsidian] - STUDIO v3.4</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
-        :root {
-            --bg: #050505;
-            --active: #ff0436;
-            --gray: #222;
-            --text: #eee;
-        }
+        :root { --bg: #050505; --gray: #555; --border: #1a1a1a; --active: #ff0436; --text: #eee; }
+        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; display: flex; height: 100vh; overflow: hidden; text-transform: uppercase; }
+        
+        aside { width: 260px; border-right: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; background: #000; z-index: 10; }
+        #logoBtn { font-weight: bold; margin-bottom: 30px; cursor: pointer; letter-spacing: 2px; color: #fff; font-size: 1.2rem; }
+        .nav-item { color: var(--gray); display: flex; align-items: center; gap: 10px; font-size: 0.7rem; cursor: pointer; margin-bottom: 15px; transition: 0.2s; }
+        .nav-item:hover { color: #fff; }
+        .side-thumb { width: 20px; height: 20px; background: #111; object-fit: cover; border: 1px solid #333; }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Courier New', monospace;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            text-transform: uppercase;
-            overflow: hidden;
-        }
+        /* FX PANEL RESTORATION */
+        #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; max-height: 450px; overflow-y: auto; scrollbar-width: thin; }
+        .fx-row { margin-bottom: 12px; }
+        .fx-row label { font-size: 0.5rem; color: var(--gray); display: flex; justify-content: space-between; margin-bottom: 4px; }
+        input[type="range"] { width: 100%; -webkit-appearance: none; background: #222; height: 1px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 8px; background: var(--active); cursor: pointer; border-radius: 50%; }
+        .reset-fx { width: 100%; background: #111; border: 1px solid #333; color: var(--active); font-family: inherit; font-size: 0.5rem; padding: 8px; cursor: pointer; margin-top: 10px; }
 
+        main { flex-grow: 1; position: relative; overflow-y: auto; padding-bottom: 150px; }
+        .state-container { display: none; width: 100%; height: 100%; flex-direction: column; }
 
-        header {
-            padding: 25px;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
+        #homeState { display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .drop-box { width: 450px; height: 250px; border: 1px dashed var(--gray); display: flex; flex-direction: column; align-items: center; justify-content: center; background: #080808; gap: 15px; cursor: pointer; }
 
-        .logo {
-            font-weight: bold;
-            letter-spacing: 2px;
-            color: #fff;
-            font-size: 1.2rem;
-            border-left: 3px solid var(--active);
-            padding-left: 15px;
-        }
+        .vault-content { padding: 40px; }
+        .vault-header { display: flex; gap: 30px; margin-bottom: 40px; }
+        .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+        .cover-art img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; }
+        .track-row.active { color: var(--active); background: #0a0000; }
+        .t-name { flex-grow: 1; cursor: pointer; }
 
-
-        main {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            text-align: center;
-        }
-
-        .glitch-text {
-            font-size: 1rem;
-            letter-spacing: 5px;
-            color: var(--text);
-        }
-
-        .status-box {
-            border: 1px solid var(--gray);
-            padding: 40px 60px;
-            background: #080808;
-            position: relative;
-        }
-
-        .status-box::before {
-            content: "STATUS: 503";
-            position: absolute;
-            top: -10px;
-            left: 20px;
-            background: var(--bg);
-            padding: 0 10px;
-            font-size: 0.6rem;
-            color: var(--active);
-        }
-
-        .sorry-text {
-            font-size: 0.7rem;
-            color: var(--gray);
-            margin-top: 10px;
-        }
-
-    
-        .scanline {
-            width: 100%;
-            height: 2px;
-            background: rgba(255, 4, 54, 0.1);
-            position: absolute;
-            top: 0;
-            animation: scan 4s linear infinite;
-        }
-
-        @keyframes scan {
-            0% { top: 0%; }
-            100% { top: 100%; }
-  
-        }
+        #playerBar { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: #000; border-top: 1px solid var(--border); display: none; flex-direction: column; }
+        #seekBar { width: 100%; height: 2px; -webkit-appearance: none; background: #111; cursor: pointer; outline: none; }
+        #seekBar::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 8px; background: var(--active); }
     </style>
 </head>
 <body>
 
-    <div class="scanline"></div>
+    <aside>
+        <div id="logoBtn" onclick="location.reload()">[obsidian]</div>
+        <nav>
+            <div class="nav-item" onclick="showState('homeState')"><span class="material-symbols-outlined">add</span>NEW PROJECT</div>
+            <div class="nav-item" onclick="showState('gridState')"><span class="material-symbols-outlined">grid_view</span>ALL PROJECTS</div>
+            <div class="nav-item" onclick="toggleFx()"><span class="material-symbols-outlined">tune</span>13-FX RACK</div>
+            
+            <div id="fxPanel">
+                <div class="fx-row"><label>1. PITCH <span id="v1">1.0</span></label><input type="range" id="f1" min="0.5" max="1.5" step="0.01" value="1"></div>
+                <div class="fx-row"><label>2. LOWPASS <span id="v2">20k</span></label><input type="range" id="f2" min="200" max="20000" step="1" value="20000"></div>
+                <div class="fx-row"><label>3. HIGHPASS <span id="v3">0</span></label><input type="range" id="f3" min="0" max="3000" step="1" value="0"></div>
+                <div class="fx-row"><label>4. BITCRUSH <span id="v4">16</span></label><input type="range" id="f4" min="1" max="16" step="0.1" value="16"></div>
+                <div class="fx-row"><label>5. DISTORT <span id="v5">0</span></label><input type="range" id="f5" min="0" max="100" step="1" value="0"></div>
+                <div class="fx-row"><label>6. COMP <span id="v6">-24</span></label><input type="range" id="f6" min="-60" max="0" step="1" value="-24"></div>
+                <div class="fx-row"><label>7. LOW EQ <span id="v7">0</span></label><input type="range" id="f7" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>8. MID EQ <span id="v8">0</span></label><input type="range" id="f8" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>9. HIGH EQ <span id="v9">0</span></label><input type="range" id="f9" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>10. WIDTH <span id="v10">1</span></label><input type="range" id="f10" min="0" max="2" step="0.1" value="1"></div>
+                <div class="fx-row"><label>11. PAN <span id="v11">0</span></label><input type="range" id="f11" min="-1" max="1" step="0.1" value="0"></div>
+                <div class="fx-row"><label>12. REVERB <span id="v12">0</span></label><input type="range" id="f12" min="0" max="0.9" step="0.01" value="0"></div>
+                <div class="fx-row"><label>13. MASTER <span id="v13">1.0</span></label><input type="range" id="f13" min="0" max="2" step="0.01" value="1"></div>
+                <button class="reset-fx" onclick="resetFX()">RESET ALL FX</button>
+            </div>
 
-    <header>
-        <div class="logo">[obsidian]</div>
-    </header>
+            <hr style="border:0; border-top:1px solid #111; margin:15px 0;">
+            <div id="sideProjects"></div>
+        </nav>
+    </aside>
 
     <main>
-        <div class="status-box">
-            <div class="glitch-text">Site is down for construction</div>
+        <div id="homeState" class="state-container" style="display:flex;">
+            <div id="dropZone" class="drop-box" onclick="document.getElementById('fileIn').click()">
+                <span class="material-symbols-outlined" style="font-size:40px;">cloud_upload</span>
+                <div style="font-size:0.6rem;">DRAG AUDIO OR CLICK TO SELECT</div>
+                <input type="file" id="fileIn" multiple accept="audio/*" style="display:none;">
+            </div>
+        </div>
+
+        <div id="gridState" class="state-container">
+            <div id="gridItems" style="padding:40px; display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:20px;"></div>
+        </div>
+
+        <div id="vaultState" class="state-container">
+            <div class="vault-content">
+                <div class="vault-header">
+                    <div class="cover-art" onclick="document.getElementById('coverIn').click()">
+                        <img id="vCover" src="" style="display:none;">
+                        <span id="vIcon" class="material-symbols-outlined">image</span>
+                    </div>
+                    <input type="file" id="coverIn" accept="image/*" style="display:none;">
+                    <div style="flex-grow:1;">
+                        <input type="text" id="vTitle" style="background:none; border:none; color:#fff; font-size:1.8rem; font-weight:bold; outline:none; width:100%;">
+                        <div style="margin-top:15px; display:flex; gap:10px;">
+                            <button onclick="document.getElementById('appendIn').click()" style="font-size:0.5rem; background:#111; color:#eee; border:1px solid #333; padding:5px 10px; cursor:pointer;">+ ADD TRACKS</button>
+                            <button onclick="deleteCurrent()" style="font-size:0.5rem; background:none; color:var(--active); border:1px solid #400; padding:5px 10px; cursor:pointer;">DELETE PROJECT</button>
+                            <input type="file" id="appendIn" multiple accept="audio/*" style="display:none;">
+                        </div>
+                    </div>
+                </div>
+                <div id="trackList"></div>
+            </div>
         </div>
     </main>
+
+    <footer id="playerBar">
+        <input type="range" id="seekBar" value="0">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 40px;">
+            <div style="font-size:0.6rem;"><span id="trackName" style="color:var(--active)">---</span></div>
+            <div style="display:flex; gap:20px;">
+                <span class="material-symbols-outlined" onclick="prev()" style="cursor:pointer">skip_previous</span>
+                <span class="material-symbols-outlined" id="playBtn" style="cursor:pointer">play_circle</span>
+                <span class="material-symbols-outlined" onclick="next()" style="cursor:pointer">skip_next</span>
+            </div>
+            <input type="range" id="volBar" min="0" max="1" step="0.01" value="0.8" style="width:60px;">
+        </div>
+    </footer>
+
+    <script>
+        let db, library = [], curV = null, curT = null, audio = new Audio();
+        let audioCtx, nodes = {};
+
+        const req = indexedDB.open("ObsidianStudio", 2);
+        req.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains("projects")) e.target.result.createObjectStore("projects", { keyPath: "id", autoIncrement: true }); };
+        req.onsuccess = e => { db = e.target.result; sync(); };
+
+        async function sync() {
+            const tx = db.transaction("projects", "readonly");
+            library = await new Promise(res => tx.objectStore("projects").getAll().onsuccess = e => res(e.target.result));
+            renderSidebar();
+            renderGrid();
+        }
+
+        // --- FILE HANDLING ---
+        document.getElementById('fileIn').onchange = e => handleFiles(e.target.files, false);
+        document.getElementById('appendIn').onchange = e => handleFiles(e.target.files, true);
+
+        async function handleFiles(files, append) {
+            const tracks = await Promise.all(Array.from(files).filter(f => f.type.startsWith('audio/')).map(f => {
+                return new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve({ title: f.name.split('.')[0], data: e.target.result });
+                    reader.readAsArrayBuffer(f);
+                });
+            }));
+
+            const tx = db.transaction("projects", "readwrite");
+            if(append && curV !== null) {
+                library[curV].tracks.push(...tracks);
+                tx.objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
+            } else {
+                const newProject = { title: "NEW PROJECT", cover: null, tracks: tracks };
+                tx.objectStore("projects").add(newProject).onsuccess = () => sync().then(() => renderProject(library.length));
+            }
+        }
+
+        // --- FX AUDIO ENGINE ---
+        function initAudio() {
+            if(audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(audio);
+            nodes.gain = audioCtx.createGain();
+            nodes.lp = audioCtx.createBiquadFilter(); nodes.lp.type = "lowpass";
+            nodes.hp = audioCtx.createBiquadFilter(); nodes.hp.type = "highpass";
+            source.connect(nodes.lp).connect(nodes.hp).connect(nodes.gain).connect(audioCtx.destination);
+            
+            // Map Pitch & Basic Filters
+            document.getElementById('f1').oninput = e => { audio.playbackRate = e.target.value; document.getElementById('v1').innerText = e.target.value; };
+            document.getElementById('f2').oninput = e => { nodes.lp.frequency.value = e.target.value; document.getElementById('v2').innerText = e.target.value; };
+            document.getElementById('f3').oninput = e => { nodes.hp.frequency.value = e.target.value; document.getElementById('v3').innerText = e.target.value; };
+            document.getElementById('f13').oninput = e => { nodes.gain.gain.value = e.target.value; document.getElementById('v13').innerText = e.target.value; };
+        }
+
+        function resetFX() {
+            const defs = {f1:1, f2:20000, f3:0, f13:1};
+            Object.keys(defs).forEach(id => {
+                const el = document.getElementById(id); el.value = defs[id];
+                el.dispatchEvent(new Event('input'));
+            });
+        }
+
+        // --- UI RENDERING ---
+        function renderSidebar() {
+            const side = document.getElementById('sideProjects'); side.innerHTML = '';
+            library.forEach((p, i) => {
+                const d = document.createElement('div'); d.className = 'nav-item';
+                d.innerHTML = p.cover ? `<img src="${p.cover}" class="side-thumb"> ${p.title}` : `<span class="material-symbols-outlined" style="font-size:14px">album</span> ${p.title}`;
+                d.onclick = () => renderProject(i);
+                side.appendChild(d);
+            });
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('gridItems'); grid.innerHTML = '';
+            library.forEach((p, i) => {
+                const card = document.createElement('div'); card.style.cssText = "border:1px solid #1a1a1a; padding:15px; cursor:pointer; background:#080808";
+                card.innerHTML = `<div style="font-size:0.7rem; color:#fff">${p.title}</div><div style="font-size:0.5rem; color:#555">${p.tracks.length} FILES</div>`;
+                card.onclick = () => renderProject(i);
+                grid.appendChild(card);
+            });
+        }
+
+        function renderProject(idx) {
+            curV = idx; const p = library[idx];
+            showState('vaultState');
+            document.getElementById('vTitle').value = p.title;
+            const img = document.getElementById('vCover');
+            if(p.cover) { img.src = p.cover; img.style.display = 'block'; document.getElementById('vIcon').style.display = 'none'; }
+            else { img.style.display = 'none'; document.getElementById('vIcon').style.display = 'block'; }
+
+            const list = document.getElementById('trackList'); list.innerHTML = '';
+            p.tracks.forEach((t, i) => {
+                const row = document.createElement('div');
+                row.className = `track-row ${curT === i && curV === idx ? 'active' : ''}`;
+                row.innerHTML = `<span class="material-symbols-outlined" style="font-size:12px">play_arrow</span><div class="t-name">${t.title}</div>`;
+                row.onclick = () => playTrack(idx, i);
+                list.appendChild(row);
+            });
+            new Sortable(list, { animation: 150, onEnd: () => { /* Logic to save order */ } });
+        }
+
+        function playTrack(vi, ti) {
+            initAudio();
+            curV = vi; curT = ti;
+            const t = library[vi].tracks[ti];
+            audio.src = URL.createObjectURL(new Blob([t.data], { type: 'audio/mpeg' }));
+            audio.play();
+            document.getElementById('playerBar').style.display = 'flex';
+            document.getElementById('trackName').innerText = t.title;
+            renderProject(vi);
+        }
+
+        function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+        function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
+        function deleteCurrent() { if(confirm("DELETE?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => location.reload(); } }
+        
+        audio.ontimeupdate = () => document.getElementById('seekBar').value = (audio.currentTime / audio.duration) * 100 || 0;
+        document.getElementById('playBtn').onclick = () => audio.paused ? audio.play() : audio.pause();
+    </script>
 </body>
 </html>
