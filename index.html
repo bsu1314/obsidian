@@ -13,6 +13,7 @@
         #logoBtn { font-weight: bold; margin-bottom: 30px; cursor: pointer; letter-spacing: 2px; color: #fff; font-size: 1.2rem; }
         .nav-item { color: var(--gray); display: flex; align-items: center; gap: 10px; font-size: 0.7rem; cursor: pointer; margin-bottom: 15px; transition: 0.2s; }
         .nav-item:hover, .nav-item.active { color: #fff; }
+        .nav-item.playing-now { color: var(--active) !important; font-weight: bold; border-right: 2px solid var(--active); }
 
         #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; max-height: 500px; overflow-y: auto; scrollbar-width: thin; }
         .fx-row { margin-bottom: 12px; }
@@ -26,10 +27,12 @@
 
         main { flex-grow: 1; position: relative; overflow-y: auto; padding-bottom: 150px; }
         .state-container { display: none; width: 100%; height: 100%; flex-direction: column; }
-        .vault-content { padding: 40px; }
-        .vault-header { display: flex; gap: 30px; margin-bottom: 40px; }
-        .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+        .vault-content { padding: 40px; display: flex; flex-direction: column; height: 100%; }
+        .vault-header { display: flex; gap: 30px; margin-bottom: 40px; flex-shrink: 0; }
+        .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; transition: 0.2s; }
         .cover-art img { width: 100%; height: 100%; object-fit: cover; }
+        
+        #trackList { overflow-y: auto; flex-grow: 1; scrollbar-width: thin; padding-right: 10px; max-height: 50vh; }
         
         .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; cursor: pointer; }
         .track-row:hover { background: #080808; }
@@ -46,6 +49,8 @@
         .player-thumb { width: 45px; height: 45px; object-fit: cover; border: 1px solid #222; }
 
         #dropZone.dragover { border-color: var(--active); background: #110000; }
+        .big-play-btn { margin-top: 15px; width: 160px; background: var(--active); color: #fff; border: none; padding: 10px; cursor: pointer; font-weight: bold; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .big-play-btn:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -101,9 +106,14 @@
         <div id="vaultState" class="state-container">
             <div class="vault-content">
                 <div class="vault-header">
-                    <div class="cover-art" onclick="document.getElementById('coverIn').click()">
-                        <img id="vCover" src="" style="display:none;">
-                        <span id="vIcon" class="material-symbols-outlined">image</span>
+                    <div>
+                        <div class="cover-art" id="vaultCoverZone" onclick="document.getElementById('coverIn').click()">
+                            <img id="vCover" src="" style="display:none;">
+                            <span id="vIcon" class="material-symbols-outlined">image</span>
+                        </div>
+                        <button class="big-play-btn" id="bigPlayBtn">
+                            <span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span> PLAY PROJECT
+                        </button>
                     </div>
                     <input type="file" id="coverIn" accept="image/*" style="display:none;">
                     <div style="flex-grow:1;">
@@ -146,6 +156,9 @@
         let audioCtx, nodes = {}, isCrossfading = false;
         let draggedTrackIdx = null;
 
+        // FIXED: Global tracking for currently playing project
+        let playingProjectId = null;
+
         const req = indexedDB.open("ObsidianStudio", 7);
         req.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains("projects")) e.target.result.createObjectStore("projects", { keyPath: "id", autoIncrement: true }); };
         req.onsuccess = e => { db = e.target.result; sync(); };
@@ -154,6 +167,7 @@
             const tx = db.transaction("projects", "readonly");
             library = await new Promise(res => tx.objectStore("projects").getAll().onsuccess = e => res(e.target.result));
             renderSidebar(); renderGrid();
+            if(curV !== null) renderProject(curV);
         }
 
         const dz = document.getElementById('dropZone');
@@ -170,13 +184,29 @@
             handleFiles(e.dataTransfer.files, false);
         }, false);
 
+        // COVER ART DRAG AND DROP
+        const cvz = document.getElementById('vaultCoverZone');
+        cvz.addEventListener('dragover', e => { e.preventDefault(); cvz.style.borderColor = 'var(--active)'; });
+        cvz.addEventListener('dragleave', () => cvz.style.borderColor = 'var(--border)');
+        cvz.addEventListener('drop', e => {
+            e.preventDefault();
+            cvz.style.borderColor = 'var(--border)';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const r = new FileReader();
+                r.onload = ev => updateProjectField('cover', ev.target.result);
+                r.readAsDataURL(file);
+            } else {
+                const url = e.dataTransfer.getData('text/plain');
+                if (url) updateProjectField('cover', url);
+            }
+        });
+
         document.getElementById('fileIn').onchange = e => handleFiles(e.target.files, false);
         document.getElementById('appendIn').onchange = e => handleFiles(e.target.files, true);
 
-        // UPDATED HANDLEFILES WITH METADATA AUTO-ASSIGNMENT
         async function handleFiles(files, append) {
             if(!files || !files.length) return;
-            
             const tracks = await Promise.all(Array.from(files).filter(f => f.type.startsWith('audio/')).map(f => {
                 return new Promise(resolve => {
                     window.jsmediatags.read(f, {
@@ -201,36 +231,28 @@
                     });
                 });
             }));
-
             if(tracks.length === 0) return;
-
-            // Sort tracks by metadata track number
             tracks.sort((a, b) => (a.meta.track || 0) - (b.meta.track || 0));
-
             const tx = db.transaction("projects", "readwrite");
             const store = tx.objectStore("projects");
-
             if(append && curV !== null) {
                 library[curV].tracks.push(...tracks.map(t => ({ title: t.title, data: t.data })));
                 store.put(library[curV]).onsuccess = () => renderProject(curV);
             } else {
                 const first = tracks[0].meta;
                 let coverData = null;
-
                 if (first.picture) {
                     const { data, format } = first.picture;
                     let base64String = "";
                     for (let i = 0; i < data.length; i++) base64String += String.fromCharCode(data[i]);
                     coverData = `data:${format};base64,${window.btoa(base64String)}`;
                 }
-
                 const newProject = { 
                     title: (first.album || "NEW PROJECT").toUpperCase(), 
                     artist: (first.artist || "UNKNOWN").toUpperCase(), 
                     cover: coverData, 
                     tracks: tracks.map(t => ({ title: t.title, data: t.data })) 
                 };
-
                 store.add(newProject).onsuccess = () => sync().then(() => showState('gridState'));
             }
         }
@@ -250,7 +272,6 @@
             nodes.gain = audioCtx.createGain();
             nodes.analyser = audioCtx.createAnalyser();
             nodes.analyser.fftSize = 256;
-
             src.connect(nodes.lp).connect(nodes.hp).connect(nodes.bass).connect(nodes.mid).connect(nodes.treble).connect(nodes.dist).connect(nodes.comp).connect(nodes.pan).connect(nodes.gain).connect(nodes.analyser).connect(audioCtx.destination);
             setupFX();
             drawWave();
@@ -260,7 +281,6 @@
             const canvas = document.getElementById('vCanvas');
             const ctx = canvas.getContext('2d');
             const data = new Uint8Array(nodes.analyser.frequencyBinCount);
-            
             const render = () => {
                 requestAnimationFrame(render);
                 nodes.analyser.getByteFrequencyData(data);
@@ -319,12 +339,15 @@
 
         function playTrack(vi, ti) {
             initAudio();
-            if(curV === vi && curT === ti && !audio.paused) { audio.pause(); } 
-            else {
+            const project = library[vi];
+            // FIXED BUG: Compare Project ID and Track index for highlight accuracy
+            if(playingProjectId === project.id && curT === ti && !audio.paused) { 
+                audio.pause(); 
+            } else {
                 isCrossfading = false;
-                nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, audioCtx.currentTime);
+                playingProjectId = project.id; 
                 curV = vi; curT = ti;
-                const t = library[vi].tracks[ti];
+                const t = project.tracks[ti];
                 audio.src = URL.createObjectURL(new Blob([t.data], { type: 'audio/mpeg' }));
                 audio.play();
                 updatePlayerUI();
@@ -346,8 +369,10 @@
         audio.onpause = () => updatePlayerUI();
 
         function prevNext(dir) {
+            let activeIdx = library.findIndex(p => p.id === playingProjectId);
+            if(activeIdx === -1) return;
             let n = curT + dir;
-            if(n >= 0 && n < library[curV].tracks.length) playTrack(curV, n);
+            if(n >= 0 && n < library[activeIdx].tracks.length) playTrack(activeIdx, n);
         }
 
         function removeTrack(ti, event) {
@@ -390,11 +415,14 @@
             if(p.cover) { img.src = p.cover; img.style.display = 'block'; document.getElementById('vIcon').style.display = 'none'; }
             else { img.style.display = 'none'; document.getElementById('vIcon').style.display = 'block'; }
             
+            document.getElementById('bigPlayBtn').onclick = () => playTrack(idx, 0);
+
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
-                const isPlaying = (curT === i && !audio.paused && library[curV].id === p.id);
+                // FIXED BUG: Highlighting now checks global project ID
+                const isPlaying = (curT === i && !audio.paused && playingProjectId === p.id);
                 const row = document.createElement('div'); 
-                row.className = `track-row ${curT === i && library[curV].id === p.id ? 'active' : ''}`;
+                row.className = `track-row ${isPlaying ? 'active' : ''}`;
                 row.draggable = true;
                 row.ondragstart = (e) => handleDragStart(e, i);
                 row.ondragover = (e) => handleDragOver(e);
@@ -410,14 +438,23 @@
         }
 
         function updatePlayerUI() {
-            const p = library[curV], t = p.tracks[curT];
+            const activeProject = library.find(p => p.id === playingProjectId);
+            if(!activeProject) return;
+            const t = activeProject.tracks[curT];
             document.getElementById('playerBar').style.display = 'flex';
             document.getElementById('pTrack').innerText = t.title;
-            document.getElementById('pDetails').innerText = `${p.artist} — ${p.title}`;
-            if(p.cover) { document.getElementById('pThumb').src = p.cover; document.getElementById('pThumb').style.display = 'block'; document.getElementById('pIcon').style.display = 'none'; }
-            else { document.getElementById('pThumb').style.display = 'none'; document.getElementById('pIcon').style.display = 'flex'; }
+            document.getElementById('pDetails').innerText = `${activeProject.artist} — ${activeProject.title}`;
+            if(activeProject.cover) { 
+                document.getElementById('pThumb').src = activeProject.cover; 
+                document.getElementById('pThumb').style.display = 'block'; 
+                document.getElementById('pIcon').style.display = 'none'; 
+            } else { 
+                document.getElementById('pThumb').style.display = 'none'; 
+                document.getElementById('pIcon').style.display = 'flex'; 
+            }
             document.getElementById('playBtn').innerText = audio.paused ? 'play_circle' : 'pause_circle';
-            renderProject(curV);
+            renderSidebar();
+            if(curV !== null && library[curV].id === playingProjectId) renderProject(curV);
         }
 
         function updateProjectField(f, v) { if(curV!==null) { library[curV][f] = v; db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => { renderSidebar(); renderGrid(); updatePlayerUI(); }; } }
@@ -427,7 +464,20 @@
         document.getElementById('playBtn').onclick = () => audio.paused ? audio.play() : audio.pause();
         document.getElementById('volBar').oninput = e => audio.volume = e.target.value;
         document.getElementById('seekBar').oninput = e => audio.currentTime = (e.target.value / 100) * audio.duration;
-        function renderSidebar() { const s = document.getElementById('sideProjects'); s.innerHTML = ''; library.forEach((p,i) => { const d = document.createElement('div'); d.className = `nav-item ${curV===i?'active':''}`; d.innerHTML = (p.cover?`<img src="${p.cover}" style="width:20px;height:20px;object-fit:cover;border:1px solid #222;"> `:`<span class="material-symbols-outlined" style="font-size:14px">album</span> `)+p.title; d.onclick = () => renderProject(i); s.appendChild(d); }); }
+        
+        function renderSidebar() { 
+            const s = document.getElementById('sideProjects'); 
+            s.innerHTML = ''; 
+            library.forEach((p,i) => { 
+                const isPlaying = (p.id === playingProjectId);
+                const d = document.createElement('div'); 
+                d.className = `nav-item ${curV===i?'active':''} ${isPlaying ? 'playing-now' : ''}`; 
+                d.innerHTML = (p.cover?`<img src="${p.cover}" style="width:20px;height:20px;object-fit:cover;border:1px solid #222;"> `:`<span class="material-symbols-outlined" style="font-size:14px">album</span> `)+p.title; 
+                d.onclick = () => renderProject(i); 
+                s.appendChild(d); 
+            }); 
+        }
+
         function renderGrid() { const g = document.getElementById('gridItems'); g.innerHTML = ''; library.forEach((p,i) => { const c = document.createElement('div'); c.style.cssText = "border:1px solid #1a1a1a; padding:20px; background:#080808; cursor:pointer;"; c.innerHTML = (p.cover?`<img src="${p.cover}" style="width:100%; aspect-ratio:1; object-fit:cover; margin-bottom:12px;">`:`<div style="width:100%; aspect-ratio:1; background:#111; margin-bottom:12px; display:flex; align-items:center; justify-content:center;"><span class="material-symbols-outlined" style="color:#222; font-size:40px;">album</span></div>`) + `<div style="font-size:0.7rem; color:#fff;">${p.title}</div><div style="font-size:0.5rem; color:#555; margin-top:4px;">${p.artist}</div>`; c.onclick = () => renderProject(i); g.appendChild(c); }); }
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
         function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
@@ -443,7 +493,7 @@
                 const clean = newTitle.trim().toUpperCase();
                 titleElement.innerText = clean;
                 library[curV].tracks[ti].title = clean;
-                if (curT === ti) document.getElementById('pTrack').innerText = clean;
+                if (curT === ti && library[curV].id === playingProjectId) document.getElementById('pTrack').innerText = clean;
                 db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]);
             }
         }
