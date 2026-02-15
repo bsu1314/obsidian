@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>[obsidian]</title>
+    <title>[obsidian] - STUDIO v3.9.1</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <style>
         :root { --bg: #050505; --gray: #555; --border: #1a1a1a; --active: #ff0436; --text: #eee; }
@@ -284,7 +284,7 @@
                 const t = library[vi].tracks[ti];
                 audio.src = URL.createObjectURL(new Blob([t.data], { type: 'audio/mpeg' }));
                 audio.play();
-                updatePlayerUI(); renderProject(vi);
+                updatePlayerUI();
             }
         }
 
@@ -323,7 +323,7 @@
         function handleDragOver(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-        }
+        } // bsu1314 here
 
         function handleDrop(e, targetIdx) {
             e.preventDefault();
@@ -336,7 +336,7 @@
             else if (draggedTrackIdx > curT && targetIdx <= curT) curT++;
             db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
             draggedTrackIdx = null;
-        }
+        } // hi 
 
         function renderProject(idx) {
             curV = idx; const p = library[idx];
@@ -349,21 +349,22 @@
             
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
+                const isPlaying = (curT === i && !audio.paused && library[curV].id === p.id);
                 const row = document.createElement('div'); 
                 row.className = `track-row ${curT === i && library[curV].id === p.id ? 'active' : ''}`;
                 row.draggable = true;
                 row.ondragstart = (e) => handleDragStart(e, i);
                 row.ondragover = (e) => handleDragOver(e);
-                row.ondrop = (e) => handleDrop(e, i);
+                row.ondrop = (e) => handleDrop(e, i); // hi
                 row.ondragend = (e) => e.currentTarget.classList.remove('dragging');
                 row.onclick = () => playTrack(idx, i);
-                row.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">play_arrow</span>
+                row.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">${isPlaying ? 'pause' : 'play_arrow'}</span>
                                  <div class="t-name">${t.title}</div>
                                  <span class="material-symbols-outlined t-remove" onclick="editTrackTitle(${i}, event)" style="font-size:16px!important; margin-right:10px;">edit</span>
                                  <span class="material-symbols-outlined t-remove" onclick="removeTrack(${i}, event)">delete_forever</span>`;
                 list.appendChild(row);
             });
-        }
+        } // pls
 
         function updatePlayerUI() {
             const p = library[curV], t = p.tracks[curT];
@@ -373,6 +374,9 @@
             if(p.cover) { document.getElementById('pThumb').src = p.cover; document.getElementById('pThumb').style.display = 'block'; document.getElementById('pIcon').style.display = 'none'; }
             else { document.getElementById('pThumb').style.display = 'none'; document.getElementById('pIcon').style.display = 'flex'; }
             document.getElementById('playBtn').innerText = audio.paused ? 'play_circle' : 'pause_circle';
+            
+           // sup
+            renderProject(curV);
         }
 
         function updateProjectField(f, v) { if(curV!==null) { library[curV][f] = v; db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => { renderSidebar(); renderGrid(); updatePlayerUI(); }; } }
@@ -387,7 +391,7 @@
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
         function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
         function deleteCurrent() { if(confirm("DELETE?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => location.reload(); } }
-        
+        // hi
         function editTrackTitle(ti, event) {
             event.stopPropagation();
             const trackRow = event.target.closest('.track-row');
