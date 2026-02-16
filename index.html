@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>[obsidian]</title>
-    <link rel="icon" type="image/png" href="https://www.crystalsandstones.com/wp-content/uploads/2020/02/s-l640.png">
+    <link rel="icon" type="image/png" href="https://static.wikia.nocookie.net/minecraft_gamepedia/images/9/99/Obsidian_JE3_BE2.png">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <style>
@@ -16,7 +16,7 @@
         .nav-item.playing-now { color: var(--active) !important; font-weight: bold; border-right: 2px solid var(--active); }
         .nav-item.drag-over { border-top: 2px solid var(--active); }
 
-        #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; max-height: 500px; overflow-y: auto; scrollbar-width: thin; }
+        #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; max-height: 550px; overflow-y: auto; scrollbar-width: thin; }
         .fx-row { margin-bottom: 12px; }
         .fx-row label { font-size: 0.5rem; color: var(--gray); display: flex; justify-content: space-between; margin-bottom: 4px; }
         input[type="range"] { width: 100%; -webkit-appearance: none; background: #222; height: 1px; outline: none; }
@@ -26,8 +26,9 @@
         .state-container { display: none; width: 100%; height: 100%; flex-direction: column; }
         .vault-content { padding: 40px; display: flex; flex-direction: column; height: 100%; }
         .vault-header { display: flex; gap: 30px; margin-bottom: 40px; flex-shrink: 0; }
-        .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+        .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
         .cover-art img { width: 100%; height: 100%; object-fit: cover; }
+        .cover-art.drag-over { border-color: var(--active); background: #1a0000; }
         
         #trackList { overflow-y: auto; flex-grow: 1; padding-right: 10px; }
         .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; cursor: pointer; }
@@ -60,6 +61,12 @@
                 <div class="fx-row"><label>2. LOWPASS <span id="v2">20k</span></label><input type="range" id="f2" min="200" max="20000" step="1" value="20000"></div>
                 <div class="fx-row"><label>3. HIGHPASS <span id="v3">0</span></label><input type="range" id="f3" min="0" max="3000" step="1" value="0"></div>
                 <div class="fx-row"><label>4. DISTORT <span id="v4">0</span></label><input type="range" id="f4" min="0" max="100" step="1" value="0"></div>
+                <div class="fx-row"><label>5. BASS <span id="v5">0dB</span></label><input type="range" id="f5" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>6. MID <span id="v6">0dB</span></label><input type="range" id="f6" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>7. TREBLE <span id="v7">0dB</span></label><input type="range" id="f7" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>8. COMPRESS <span id="v8">1</span></label><input type="range" id="f8" min="1" max="20" step="0.1" value="1"></div>
+                <div class="fx-row"><label>11. PAN <span id="v11">0</span></label><input type="range" id="f11" min="-1" max="1" step="0.1" value="0"></div>
+                <div class="fx-row"><label>13. MASTER <span id="v13">1.0</span></label><input type="range" id="f13" min="0" max="2" step="0.01" value="1"></div>
                 <button onclick="resetFX()" style="width:100%; background:#111; color:var(--active); border:1px solid #333; font-size:0.5rem; padding:8px; cursor:pointer;">RESET ALL</button>
             </div>
             <hr style="border:0; border-top:1px solid #111; margin:15px 0;">
@@ -86,13 +93,13 @@
             <div class="vault-content">
                 <div class="vault-header">
                     <div>
-                        <div class="cover-art" id="vaultCoverZone" onclick="document.getElementById('coverIn').click()">
+                        <div class="cover-art" id="vaultCoverZone">
                             <img id="vCover" src="" style="display:none;">
                             <span id="vIcon" class="material-symbols-outlined">image</span>
+                            <input type="file" id="coverIn" accept="image/*" style="display:none;">
                         </div>
                         <button class="big-play-btn" id="bigPlayBtn"><span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span> PLAY PROJECT</button>
                     </div>
-                    <input type="file" id="coverIn" accept="image/*" style="display:none;">
                     <div style="flex-grow:1;">
                         <input type="text" id="vTitle" placeholder="PROJECT TITLE" style="background:none; border:none; color:#fff; font-size:2rem; font-weight:bold; outline:none; width:100%; margin-bottom:5px;">
                         <input type="text" id="vArtist" placeholder="ARTIST NAME" style="background:none; border:none; color:var(--gray); font-size:0.8rem; outline:none; width:100%; letter-spacing:2px;">
@@ -129,7 +136,7 @@
         let audioCtx, nodes = {}, playingProjectId = null;
         let dragSource = null;
 
-        const req = indexedDB.open("ObsidianStudio", 10);
+        const req = indexedDB.open("ObsidianStudio", 11);
         req.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains("projects")) e.target.result.createObjectStore("projects", { keyPath: "id", autoIncrement: true }); };
         req.onsuccess = e => { db = e.target.result; sync(); };
 
@@ -142,12 +149,31 @@
 
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
 
-        // Audio and Files...
+
         const dz = document.getElementById('dropZone');
         dz.onclick = () => document.getElementById('fileIn').click();
         ['dragover', 'drop'].forEach(evt => dz.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }));
         document.getElementById('fileIn').onchange = e => handleFiles(e.target.files, false);
         document.getElementById('appendIn').onchange = e => handleFiles(e.target.files, true);
+
+     
+        const cvz = document.getElementById('vaultCoverZone');
+        const cin = document.getElementById('coverIn');
+        cvz.onclick = () => cin.click();
+        ['dragover', 'dragenter'].forEach(evt => cvz.addEventListener(evt, e => { e.preventDefault(); cvz.classList.add('drag-over'); }));
+        ['dragleave', 'dragend', 'drop'].forEach(evt => cvz.addEventListener(evt, e => { e.preventDefault(); cvz.classList.remove('drag-over'); }));
+        cvz.ondrop = e => { if(e.dataTransfer.files.length) handleCover(e.dataTransfer.files[0]); };
+        cin.onchange = e => { if(e.target.files.length) handleCover(e.target.files[0]); };
+
+        function handleCover(file) {
+            if(!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                library[curV].cover = e.target.result;
+                saveProject();
+            };
+            reader.readAsDataURL(file);
+        }
 
         async function handleFiles(files, append) {
             if(!files.length) return;
@@ -180,7 +206,7 @@
             tx.oncomplete = () => sync().then(() => !append && showState('gridState'));
         }
 
-        // Drag & Drop Handlers
+        // Drag & Drop (Tracks/Projects)
         function setupDraggable(el, type, index) {
             el.draggable = true;
             el.ondragstart = e => { dragSource = { type, index }; e.dataTransfer.effectAllowed = 'move'; };
@@ -199,8 +225,6 @@
             if (type === 'project') {
                 const moved = library.splice(from, 1)[0];
                 library.splice(to, 0, moved);
-                // In a real app we'd update every record's 'order' field, 
-                // but here we rewrite the order based on the current array.
                 const tx = db.transaction("projects", "readwrite");
                 const store = tx.objectStore("projects");
                 await store.clear();
@@ -213,50 +237,124 @@
             }
         }
 
-        // Project Rendering
+        // FX & Audio
+        function initAudio() {
+            if(audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const src = audioCtx.createMediaElementSource(audio);
+            nodes.lp = audioCtx.createBiquadFilter(); nodes.lp.type = "lowpass"; nodes.lp.frequency.value = 20000;
+            nodes.hp = audioCtx.createBiquadFilter(); nodes.hp.type = "highpass"; nodes.hp.frequency.value = 0;
+            nodes.dist = audioCtx.createWaveShaper();
+            nodes.bass = audioCtx.createBiquadFilter(); nodes.bass.type = "lowshelf"; nodes.bass.frequency.value = 200;
+            nodes.mid = audioCtx.createBiquadFilter(); nodes.mid.type = "peaking"; nodes.mid.frequency.value = 1000;
+            nodes.treble = audioCtx.createBiquadFilter(); nodes.treble.type = "highshelf"; nodes.treble.frequency.value = 3000;
+            nodes.comp = audioCtx.createDynamicsCompressor();
+            nodes.pan = audioCtx.createStereoPanner();
+            nodes.gain = audioCtx.createGain();
+            nodes.analyser = audioCtx.createAnalyser();
+            
+            src.connect(nodes.lp).connect(nodes.hp).connect(nodes.bass).connect(nodes.mid).connect(nodes.treble).connect(nodes.dist).connect(nodes.comp).connect(nodes.pan).connect(nodes.gain).connect(nodes.analyser).connect(audioCtx.destination);
+            setupFXHandlers();
+            drawWave();
+        }
+
+        function setupFXHandlers() {
+            const h = (id, node, param, multiplier=1, suffix='') => {
+                const el = document.getElementById(id);
+                el.oninput = e => {
+                    const val = parseFloat(e.target.value);
+                    if(param === 'curve') {
+                        if(val == 0) node.curve = null;
+                        else {
+                            const k = val * 5, curve = new Float32Array(44100);
+                            for(let i=0; i<44100; i++) { let x = i*2/44100-1; curve[i] = (3+k)*x*20*(Math.PI/180)/(Math.PI+k*Math.abs(x)); }
+                            node.curve = curve;
+                        }
+                    } else if (node[param] instanceof AudioParam) {
+                        node[param].value = val;
+                    } else {
+                        node[param] = val;
+                    }
+                    document.getElementById('v'+id.slice(1)).innerText = (val * multiplier).toFixed(param==='frequency'?0:1) + suffix;
+                };
+            };
+            h('f1', audio, 'playbackRate');
+            h('f2', nodes.lp, 'frequency');
+            h('f3', nodes.hp, 'frequency');
+            h('f4', nodes.dist, 'curve');
+            h('f5', nodes.bass, 'gain', 1, 'dB');
+            h('f6', nodes.mid, 'gain', 1, 'dB');
+            h('f7', nodes.treble, 'gain', 1, 'dB');
+            h('f8', nodes.comp, 'ratio');
+            h('f11', nodes.pan, 'pan');
+            h('f13', nodes.gain, 'gain');
+        }
+
+        function resetFX() {
+            const resets = {f1:1, f2:20000, f3:0, f4:0, f5:0, f6:0, f7:0, f8:1, f11:0, f13:1};
+            for(let id in resets) {
+                const el = document.getElementById(id);
+                el.value = resets[id];
+                el.dispatchEvent(new Event('input'));
+            }
+        }
+
+        function drawWave() {
+            const canvas = document.getElementById('vCanvas'), ctx = canvas.getContext('2d');
+            const data = new Uint8Array(nodes.analyser.frequencyBinCount);
+            const render = () => {
+                requestAnimationFrame(render);
+                nodes.analyser.getByteFrequencyData(data);
+                ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                for(let i=0; i<40; i++) {
+                    ctx.fillStyle = data[i*2] > 200 ? '#ff0436' : '#333';
+                    ctx.fillRect(i*6, canvas.height - data[i*2]/4, 4, data[i*2]/4);
+                }
+            }; render();
+        }
+
+        function playTrack(vi, ti) {
+            initAudio();
+            playingProjectId = library[vi].id; curV = vi; curT = ti;
+            audio.src = URL.createObjectURL(new Blob([library[vi].tracks[ti].data]));
+            audio.play();
+            updatePlayerUI();
+        }
+
+        function editTrackTitle(i, event) {
+            event.stopPropagation();
+            const container = document.getElementById(`t-container-${i}`);
+            const original = library[curV].tracks[i].title;
+            container.innerHTML = `<input type="text" class="t-edit-input" id="edit-input-${i}" value="${original}">`;
+            const input = document.getElementById(`edit-input-${i}`);
+            input.focus();
+            input.onblur = () => { library[curV].tracks[i].title = input.value.toUpperCase(); saveProject(); };
+            input.onkeydown = e => { if(e.key==='Enter') input.blur(); };
+        }
+
+        function saveProject() { db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV); }
+
         function renderProject(idx) {
             curV = idx; const p = library[idx];
             showState('vaultState');
             document.getElementById('vTitle').value = p.title;
             document.getElementById('vArtist').value = p.artist;
             
+            const img = document.getElementById('vCover'), icn = document.getElementById('vIcon');
+            if(p.cover) { img.src = p.cover; img.style.display = 'block'; icn.style.display = 'none'; }
+            else { img.style.display = 'none'; icn.style.display = 'block'; }
+
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
                 const isPlaying = (curT === i && !audio.paused && playingProjectId === p.id);
                 const row = document.createElement('div'); row.className = `track-row ${isPlaying?'active':''}`;
                 setupDraggable(row, 'track', i);
-
-                row.innerHTML = `
-                    <span class="material-symbols-outlined" style="font-size:14px">${isPlaying?'pause':'play_arrow'}</span>
-                    <div class="t-name" id="t-container-${i}">
-                        <span id="t-text-${i}">${t.title}</span>
-                        <span class="material-symbols-outlined t-icon-btn" onclick="editTrackTitle(${i}, event)">edit</span>
-                    </div>
-                    <span class="material-symbols-outlined t-remove" onclick="removeTrack(${i}, event)">delete_forever</span>
-                `;
+                row.innerHTML = `<span class="material-symbols-outlined">${isPlaying?'pause':'play_arrow'}</span>
+                    <div class="t-name" id="t-container-${i}"><span>${t.title}</span> <span class="material-symbols-outlined t-icon-btn" onclick="editTrackTitle(${i}, event)">edit</span></div>
+                    <span class="material-symbols-outlined t-remove" onclick="removeTrack(${i}, event)">delete_forever</span>`;
                 row.onclick = (e) => { if(e.target.tagName !== 'INPUT' && !e.target.classList.contains('t-icon-btn')) playTrack(idx, i); };
                 list.appendChild(row);
             });
-        }
-
-        function editTrackTitle(i, event) {
-            event.stopPropagation();
-            const container = document.getElementById(`t-container-${i}`);
-            const originalTitle = library[curV].tracks[i].title;
-            container.innerHTML = `<input type="text" class="t-edit-input" id="edit-input-${i}" value="${originalTitle}">`;
-            const input = document.getElementById(`edit-input-${i}`);
-            input.focus();
-            input.onblur = () => saveTrackTitle(i, input.value);
-            input.onkeydown = e => { if(e.key === 'Enter') saveTrackTitle(i, input.value); };
-        }
-
-        function saveTrackTitle(i, newTitle) {
-            if (newTitle.trim() !== "") {
-                library[curV].tracks[i].title = newTitle.toUpperCase();
-                db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
-            } else {
-                renderProject(curV);
-            }
         }
 
         function renderSidebar() {
@@ -273,18 +371,10 @@
             const g = document.getElementById('gridItems'); g.innerHTML = '';
             library.forEach((p, i) => {
                 const c = document.createElement('div'); c.style.cssText = "border:1px solid #1a1a1a; padding:20px; background:#080808; cursor:pointer;";
-                c.innerHTML = `<div style="width:100%; aspect-ratio:1; background:#111; display:flex; align-items:center; justify-content:center; margin-bottom:12px;"><span class="material-symbols-outlined" style="font-size:40px; color:#222">album</span></div><div style="font-size:0.7rem;">${p.title}</div>`;
+                const coverStyle = p.cover ? `background-image:url(${p.cover}); background-size:cover;` : 'background:#111;';
+                c.innerHTML = `<div style="width:100%; aspect-ratio:1; ${coverStyle} display:flex; align-items:center; justify-content:center; margin-bottom:12px;">${p.cover?'':'<span class="material-symbols-outlined" style="font-size:40px; color:#222">album</span>'}</div><div style="font-size:0.7rem;">${p.title}</div>`;
                 c.onclick = () => renderProject(i); g.appendChild(c);
             });
-        }
-
-        // Rest of Audio Engine and FX (Existing logic)...
-        function playTrack(vi, ti) {
-            if(!audioCtx) initAudio();
-            playingProjectId = library[vi].id; curV = vi; curT = ti;
-            audio.src = URL.createObjectURL(new Blob([library[vi].tracks[ti].data]));
-            audio.play();
-            updatePlayerUI();
         }
 
         function updatePlayerUI() {
@@ -295,49 +385,33 @@
             document.getElementById('pDetails').innerText = `${p.artist} — ${p.title}`;
             document.getElementById('playBtn').innerText = audio.paused ? 'play_circle' : 'pause_circle';
             renderSidebar();
-            if(curV !== null && library[curV].id === playingProjectId) renderProject(curV);
-        }
-
-        function initAudio() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const src = audioCtx.createMediaElementSource(audio);
-            nodes.lp = audioCtx.createBiquadFilter(); nodes.lp.type = "lowpass";
-            nodes.hp = audioCtx.createBiquadFilter(); nodes.hp.type = "highpass";
-            nodes.dist = audioCtx.createWaveShaper();
-            nodes.gain = audioCtx.createGain();
-            nodes.analyser = audioCtx.createAnalyser();
-            src.connect(nodes.lp).connect(nodes.hp).connect(nodes.dist).connect(nodes.gain).connect(nodes.analyser).connect(audioCtx.destination);
-            drawWave();
-        }
-
-        function drawWave() {
-            const canvas = document.getElementById('vCanvas'), ctx = canvas.getContext('2d');
-            const data = new Uint8Array(nodes.analyser.frequencyBinCount);
-            const render = () => {
-                requestAnimationFrame(render);
-                nodes.analyser.getByteFrequencyData(data);
-                ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                for(let i=0; i<30; i++) {
-                    ctx.fillStyle = data[i*2] > 200 ? '#ff0436' : '#333';
-                    ctx.fillRect(i*8, canvas.height - data[i*2]/4, 6, data[i*2]/4);
-                }
-            }; render();
-        }
-
-        function resetFX() {
-            audio.playbackRate = 1;
-            if(audioCtx) { nodes.lp.frequency.value = 20000; nodes.hp.frequency.value = 0; nodes.dist.curve = null; nodes.gain.gain.value = 1; }
-            sync();
         }
 
         function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
-        function deleteCurrent() { if(confirm("DELETE PROJECT?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => location.reload(); } }
-        function removeTrack(ti, e) { e.stopPropagation(); if(confirm("DELETE TRACK?")) { library[curV].tracks.splice(ti, 1); db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV); } }
+        function deleteCurrent() { if(confirm("DELETE?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => { curV = null; sync().then(() => showState('gridState')); } } }
+        function removeTrack(ti, e) { e.stopPropagation(); if(confirm("DELETE?")) { library[curV].tracks.splice(ti, 1); saveProject(); } }
         
+        document.getElementById('vTitle').oninput = e => { library[curV].title = e.target.value.toUpperCase(); saveProject(); };
+        document.getElementById('vArtist').oninput = e => { library[curV].artist = e.target.value.toUpperCase(); saveProject(); };
         document.getElementById('playBtn').onclick = () => { audio.paused ? audio.play() : audio.pause(); updatePlayerUI(); };
         audio.ontimeupdate = () => { document.getElementById('seekBar').value = (audio.currentTime / audio.duration) * 100 || 0; };
         audio.onended = () => prevNext(1);
         function prevNext(dir) { let n = curT + dir; if(n >= 0 && n < library[curV].tracks.length) playTrack(curV, n); }
+        document.getElementById('bigPlayBtn').onclick = () => { if(library[curV].tracks.length) playTrack(curV, 0); };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (audio.src) {
+                    audio.paused ? audio.play() : audio.pause();
+                    updatePlayerUI();
+                    if (curV !== null) renderProject(curV);
+                }
+            }
+            if (e.code === 'ArrowRight') prevNext(1);
+            if (e.code === 'ArrowLeft') prevNext(-1);
+        });
     </script>
 </body>
 </html>
