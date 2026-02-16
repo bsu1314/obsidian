@@ -29,6 +29,10 @@
         .cover-art img { width: 100%; height: 100%; object-fit: cover; }
         .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; cursor: pointer; }
         .track-row.active { color: var(--active); background: #0a0000; }
+        .track-row.dragging { opacity: 0.4; background: #222; }
+        .track-row.drag-over { border-top: 1px solid var(--active); }
+        .drag-handle { cursor: grab; opacity: 0.3; transition: 0.2s; }
+        .drag-handle:hover { opacity: 1; color: var(--active); }
         .t-name { flex-grow: 1; display: flex; align-items: center; gap: 10px; }
         #playerBar { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: #000; border-top: 1px solid var(--border); display: none; flex-direction: column; z-index: 100; }
         #seekBar { width: 100%; height: 2px; -webkit-appearance: none; background: #111; cursor: pointer; outline: none; }
@@ -113,6 +117,7 @@
     <script>
         let db=null, library=[], curV=null, curT=null, audio=new Audio();
         let audioCtx, nodes={}, playingProjectId=null, isScrubbing = false;
+        let dragSourceIdx = null;
 
         const openDB = () => new Promise(res => {
             const req = indexedDB.open("ObsidianStudioFinal", 1);
@@ -240,8 +245,37 @@
                 const active = playingProjectId===p.id && curT===i;
                 const row = document.createElement('div');
                 row.className = `track-row ${active ? 'active' : ''}`;
-                row.innerHTML = `<span class="material-symbols-outlined">${active && !audio.paused ? 'pause' : 'play_arrow'}</span><div class="t-name"><span>${t.title}</span><span class="material-symbols-outlined" style="font-size:12px; opacity:0.3;" onclick="editTrack(${i}, event)">edit</span></div><span class="material-symbols-outlined" onclick="removeTrack(${i}, event)">delete</span>`;
-                row.onclick = () => playTrack(idx, i); list.appendChild(row);
+                row.draggable = true;
+                row.dataset.index = i;
+
+                // Drag Events
+                row.ondragstart = (e) => { dragSourceIdx = i; e.target.classList.add('dragging'); };
+                row.ondragover = (e) => { e.preventDefault(); row.classList.add('drag-over'); };
+                row.ondragleave = () => { row.classList.remove('drag-over'); };
+                row.ondrop = (e) => {
+                    e.preventDefault();
+                    row.classList.remove('drag-over');
+                    if (dragSourceIdx !== i) {
+                        const tracks = library[curV].tracks;
+                        const [removed] = tracks.splice(dragSourceIdx, 1);
+                        tracks.splice(i, 0, removed);
+                        // Update playing index if moving currently playing track
+                        if (playingProjectId === library[curV].id && curT === dragSourceIdx) curT = i;
+                        save();
+                    }
+                };
+                row.ondragend = () => { row.classList.remove('dragging'); };
+
+                row.innerHTML = `
+                    <span class="material-symbols-outlined drag-handle">drag_indicator</span>
+                    <span class="material-symbols-outlined" onclick="playTrack(${idx}, ${i})">${active && !audio.paused ? 'pause' : 'play_arrow'}</span>
+                    <div class="t-name" onclick="playTrack(${idx}, ${i})">
+                        <span>${t.title}</span>
+                        <span class="material-symbols-outlined" style="font-size:12px; opacity:0.3;" onclick="editTrack(${i}, event)">edit</span>
+                    </div>
+                    <span class="material-symbols-outlined" onclick="removeTrack(${i}, event)">delete</span>
+                `;
+                list.appendChild(row);
             });
         }
 
