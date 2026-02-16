@@ -149,14 +149,15 @@
 
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
 
-
+        // File handling
         const dz = document.getElementById('dropZone');
         dz.onclick = () => document.getElementById('fileIn').click();
         ['dragover', 'drop'].forEach(evt => dz.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }));
+        dz.ondrop = e => handleFiles(e.dataTransfer.files, false);
         document.getElementById('fileIn').onchange = e => handleFiles(e.target.files, false);
         document.getElementById('appendIn').onchange = e => handleFiles(e.target.files, true);
 
-     
+        // Cover Art Logic
         const cvz = document.getElementById('vaultCoverZone');
         const cin = document.getElementById('coverIn');
         cvz.onclick = () => cin.click();
@@ -177,7 +178,10 @@
 
         async function handleFiles(files, append) {
             if(!files.length) return;
-            const tracks = await Promise.all(Array.from(files).filter(f => f.type.startsWith('audio/')).map(f => {
+            const trackFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
+            if(!trackFiles.length) return;
+
+            const tracks = await Promise.all(trackFiles.map(f => {
                 return new Promise(resolve => {
                     window.jsmediatags.read(f, {
                         onSuccess: (tag) => {
@@ -196,14 +200,22 @@
 
             const tx = db.transaction("projects", "readwrite");
             const store = tx.objectStore("projects");
+            
             if(append && curV !== null) {
                 library[curV].tracks.push(...tracks);
-                store.put(library[curV]).onsuccess = () => renderProject(curV);
+                store.put(library[curV]);
+                tx.oncomplete = () => { sync(); renderProject(curV); };
             } else {
                 const newProject = { title: "NEW PROJECT", artist: "UNKNOWN", cover: null, tracks: tracks };
-                store.add(newProject);
+                const addReq = store.add(newProject);
+                tx.oncomplete = () => {
+                    sync().then(() => {
+                        const newIndex = library.findIndex(p => p.tracks.length === tracks.length && p.title === "NEW PROJECT");
+                        if(newIndex !== -1) renderProject(newIndex);
+                        else showState('gridState');
+                    });
+                };
             }
-            tx.oncomplete = () => sync().then(() => !append && showState('gridState'));
         }
 
         // Drag & Drop (Tracks/Projects)
@@ -228,7 +240,7 @@
                 const tx = db.transaction("projects", "readwrite");
                 const store = tx.objectStore("projects");
                 await store.clear();
-                library.forEach(p => { delete p.id; store.add(p); });
+                for(let p of library) { delete p.id; store.add(p); }
                 tx.oncomplete = () => sync();
             } else if (type === 'track') {
                 const moved = library[curV].tracks.splice(from, 1)[0];
