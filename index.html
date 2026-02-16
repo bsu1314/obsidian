@@ -91,7 +91,7 @@
                         <input type="text" id="vArtist" placeholder="ARTIST" style="background:none; border:none; color:var(--gray); font-size:0.9rem; outline:none; width:100%;">
                         <div style="margin-top:25px; display:flex; gap:10px;">
                             <button onclick="document.getElementById('appendIn').click()" style="font-size:0.5rem; background:#111; color:#eee; border:1px solid #333; padding:8px 15px; cursor:pointer;">+ ADD TRACKS</button>
-                            <button onclick="deleteCurrent()" style="font-size:0.5rem; background:none; color:var(--active); border:1px solid #400; padding:8px 15px; cursor:pointer;">DELETE PROJECT</button>
+                            <button onclick="deleteCurrent(event)" style="font-size:0.5rem; background:none; color:var(--active); border:1px solid #400; padding:8px 15px; cursor:pointer;">DELETE PROJECT</button>
                             <input type="file" id="appendIn" multiple accept="audio/*" style="display:none;">
                         </div>
                     </div>
@@ -222,10 +222,8 @@
             if(n >= 0 && n < library[curV].tracks.length) {
                 playTrack(curV, n);
             } else if (n >= library[curV].tracks.length) {
-               
                 playTrack(curV, 0);
             } else if (n < 0) {
-               
                 playTrack(curV, library[curV].tracks.length - 1);
             }
         }
@@ -252,7 +250,15 @@
         async function save() { if(curV===null) return; library[curV].title = document.getElementById('vTitle').value.toUpperCase(); library[curV].artist = document.getElementById('vArtist').value.toUpperCase(); db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => { sync(); }; }
         function renderSidebar() { const s = document.getElementById('sideProjects'); s.innerHTML = ''; library.forEach((p, i) => { const d = document.createElement('div'); d.className = `nav-item ${curV===i?'active':''} ${playingProjectId===p.id?'playing-now':''}`; d.innerHTML = `${p.cover ? `<img src="${p.cover}">` : `<span class="material-symbols-outlined">album</span>`} ${p.title}`; d.onclick = () => renderProject(i); s.appendChild(d); }); }
         function renderGrid() { const g = document.getElementById('gridItems'); g.innerHTML = ''; library.forEach((p, i) => { const c = document.createElement('div'); c.style.cssText = "border:1px solid #1a1a1a; padding:20px; background:#080808; cursor:pointer;"; c.innerHTML = `${p.cover ? `<img src="${p.cover}" style="width:100%; aspect-ratio:1; object-fit:cover;">` : `<div style="width:100%; aspect-ratio:1; background:#111;"></div>`}<div style="margin-top:10px; font-size:0.6rem;">${p.title}</div>`; c.onclick = () => renderProject(i); g.appendChild(c); }); }
-        function deleteCurrent() { if(confirm("DELETE?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => { curV=null; sync(); showState('gridState'); } } }
+        
+        function deleteCurrent(e) { 
+            const bypassConfirm = e && e.shiftKey;
+            if(bypassConfirm || confirm("DELETE?")) { 
+                db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => { 
+                    curV=null; sync(); showState('gridState'); 
+                } 
+            } 
+        }
 
         window.onkeydown = e => { if(e.target.tagName !== 'INPUT') { if(e.code === 'Space') { e.preventDefault(); audio.paused ? audio.play() : audio.pause(); } if(e.code === 'ArrowRight') prevNext(1); if(e.code === 'ArrowLeft') prevNext(-1); } };
         document.getElementById('dropZone').onclick = () => document.getElementById('fileIn').click();
@@ -263,7 +269,6 @@
         document.getElementById('vTitle').onblur = save; document.getElementById('vArtist').onblur = save;
         document.getElementById('playBtn').onclick = () => audio.paused ? audio.play() : audio.pause();
         
-        
         const sb = document.getElementById('seekBar');
         sb.onmousedown = () => isScrubbing = true;
         sb.onmouseup = () => isScrubbing = false;
@@ -272,13 +277,11 @@
         audio.onplay = updatePlayerUI; audio.onpause = updatePlayerUI;
         audio.ontimeupdate = () => { if(!isScrubbing) sb.value = (audio.currentTime/audio.duration)*100 || 0; };
         
-     
         audio.onended = () => {
             let nextTrack = curT + 1;
             if(nextTrack < library[curV].tracks.length) {
                 playTrack(curV, nextTrack);
             } else {
-             
                 playTrack(curV, 0);
             }
         };
