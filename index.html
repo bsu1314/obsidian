@@ -248,7 +248,7 @@
                 row.draggable = true;
                 row.dataset.index = i;
 
-                // Drag Events
+
                 row.ondragstart = (e) => { dragSourceIdx = i; e.target.classList.add('dragging'); };
                 row.ondragover = (e) => { e.preventDefault(); row.classList.add('drag-over'); };
                 row.ondragleave = () => { row.classList.remove('drag-over'); };
@@ -259,7 +259,7 @@
                         const tracks = library[curV].tracks;
                         const [removed] = tracks.splice(dragSourceIdx, 1);
                         tracks.splice(i, 0, removed);
-                        // Update playing index if moving currently playing track
+              
                         if (playingProjectId === library[curV].id && curT === dragSourceIdx) curT = i;
                         save();
                     }
