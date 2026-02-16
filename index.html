@@ -78,10 +78,7 @@
                 <div class="fx-row"><label>6. MID <span id="v6">0dB</span></label><input type="range" id="f6" min="-20" max="20" step="1" value="0"></div>
                 <div class="fx-row"><label>7. TREBLE <span id="v7">0dB</span></label><input type="range" id="f7" min="-20" max="20" step="1" value="0"></div>
                 <div class="fx-row"><label>8. COMPRESS <span id="v8">1</span></label><input type="range" id="f8" min="1" max="20" step="0.1" value="1"></div>
-                <div class="fx-row"><label>9. BITCRUSH <span id="v9">16</span></label><input type="range" id="f9" min="1" max="16" step="0.1" value="16"></div>
-                <div class="fx-row"><label>10. WIDTH <span id="v10">1</span></label><input type="range" id="f10" min="0" max="2" step="0.1" value="1"></div>
                 <div class="fx-row"><label>11. PAN <span id="v11">0</span></label><input type="range" id="f11" min="-1" max="1" step="0.1" value="0"></div>
-                <div class="fx-row"><label>12. REVERB <span id="v12">0</span></label><input type="range" id="f12" min="0" max="0.8" step="0.01" value="0"></div>
                 <div class="fx-row"><label>13. MASTER <span id="v13">1.0</span></label><input type="range" id="f13" min="0" max="2" step="0.01" value="1"></div>
                 <button onclick="resetFX()" style="width:100%; background:#111; color:var(--active); border:1px solid #333; font-size:0.5rem; padding:8px; cursor:pointer;">RESET ALL</button>
             </div>
@@ -156,10 +153,9 @@
     <script>
         let db, library = [], curV = null, curT = null, audio = new Audio();
         let audioCtx, nodes = {}, isCrossfading = false;
-        let draggedTrackIdx = null;
         let playingProjectId = null;
 
-        const req = indexedDB.open("ObsidianStudio", 7);
+        const req = indexedDB.open("ObsidianStudio", 8);
         req.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains("projects")) e.target.result.createObjectStore("projects", { keyPath: "id", autoIncrement: true }); };
         req.onsuccess = e => { db = e.target.result; sync(); };
 
@@ -182,20 +178,6 @@
             dz.classList.remove('dragover');
             handleFiles(e.dataTransfer.files, false);
         }, false);
-
-        const cvz = document.getElementById('vaultCoverZone');
-        cvz.addEventListener('dragover', e => { e.preventDefault(); cvz.style.borderColor = 'var(--active)'; });
-        cvz.addEventListener('dragleave', () => cvz.style.borderColor = 'var(--border)');
-        cvz.addEventListener('drop', e => {
-            e.preventDefault();
-            cvz.style.borderColor = 'var(--border)';
-            const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const r = new FileReader();
-                r.onload = ev => updateProjectField('cover', ev.target.result);
-                r.readAsDataURL(file);
-            }
-        });
 
         document.getElementById('fileIn').onchange = e => handleFiles(e.target.files, false);
         document.getElementById('appendIn').onchange = e => handleFiles(e.target.files, true);
@@ -325,20 +307,9 @@
                 row.onclick = () => playTrack(idx, i);
                 row.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">${isPlaying ? 'pause' : 'play_arrow'}</span>
                                  <div class="t-name">${t.title}</div>
-                                 <span class="material-symbols-outlined t-remove" onclick="editTrackTitle(${i}, event)" style="font-size:16px!important; margin-right:10px;">edit</span>
                                  <span class="material-symbols-outlined t-remove" onclick="removeTrack(${i}, event)">delete_forever</span>`;
                 list.appendChild(row);
             });
-        }
-
-        function editTrackTitle(ti, event) {
-            event.stopPropagation();
-            const currentTitle = library[curV].tracks[ti].title;
-            const newTitle = prompt("RENAME TRACK:", currentTitle);
-            if (newTitle && newTitle.trim() !== "") {
-                library[curV].tracks[ti].title = newTitle.toUpperCase();
-                db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
-            }
         }
 
         function updatePlayerUI() {
@@ -373,8 +344,73 @@
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
         function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
         function deleteCurrent() { if(confirm("DELETE?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => location.reload(); } }
-        function setupFX() { document.getElementById('f1').oninput = e => { audio.playbackRate = e.target.value; document.getElementById('v1').innerText = e.target.value; }; }
-        function resetFX() { audio.playbackRate = 1; document.getElementById('f1').value = 1; document.getElementById('v1').innerText = "1.0"; }
+        
+        // Full Setup for FX Sliders
+        function setupFX() {
+            document.getElementById('f1').oninput = e => { audio.playbackRate = e.target.value; document.getElementById('v1').innerText = e.target.value; };
+            document.getElementById('f2').oninput = e => { nodes.lp.frequency.value = e.target.value; document.getElementById('v2').innerText = e.target.value > 1000 ? (e.target.value/1000).toFixed(1) + 'k' : e.target.value; };
+            document.getElementById('f3').oninput = e => { nodes.hp.frequency.value = e.target.value; document.getElementById('v3').innerText = e.target.value; };
+            document.getElementById('f4').oninput = e => { 
+                const val = e.target.value;
+                document.getElementById('v4').innerText = val;
+                if(val == 0) nodes.dist.curve = null;
+                else {
+                    const k = val * 5;
+                    const curve = new Float32Array(44100);
+                    for (let i = 0; i < 44100; ++i) {
+                        const x = i * 2 / 44100 - 1;
+                        curve[i] = (3 + k) * x * 20 * (Math.PI / 180) / (Math.PI + k * Math.abs(x));
+                    }
+                    nodes.dist.curve = curve;
+                }
+            };
+            document.getElementById('f5').oninput = e => { nodes.bass.gain.value = e.target.value; document.getElementById('v5').innerText = e.target.value + 'dB'; };
+            document.getElementById('f6').oninput = e => { nodes.mid.gain.value = e.target.value; document.getElementById('v6').innerText = e.target.value + 'dB'; };
+            document.getElementById('f7').oninput = e => { nodes.treble.gain.value = e.target.value; document.getElementById('v7').innerText = e.target.value + 'dB'; };
+            document.getElementById('f8').oninput = e => { nodes.comp.ratio.value = e.target.value; document.getElementById('v8').innerText = e.target.value; };
+            document.getElementById('f11').oninput = e => { nodes.pan.pan.value = e.target.value; document.getElementById('v11').innerText = e.target.value; };
+            document.getElementById('f13').oninput = e => { nodes.gain.gain.value = e.target.value; document.getElementById('v13').innerText = e.target.value; };
+        }
+
+        // Fixed Reset Function
+        function resetFX() {
+            // Reset Audio Parameters
+            audio.playbackRate = 1;
+            if (audioCtx) {
+                nodes.lp.frequency.value = 20000;
+                nodes.hp.frequency.value = 0;
+                nodes.dist.curve = null;
+                nodes.bass.gain.value = 0;
+                nodes.mid.gain.value = 0;
+                nodes.treble.gain.value = 0;
+                nodes.comp.ratio.value = 1;
+                nodes.pan.pan.value = 0;
+                nodes.gain.gain.value = 1;
+            }
+
+            // Reset UI Elements
+            const resets = {
+                'f1': '1', 'v1': '1.0',
+                'f2': '20000', 'v2': '20k',
+                'f3': '0', 'v3': '0',
+                'f4': '0', 'v4': '0',
+                'f5': '0', 'v5': '0dB',
+                'f6': '0', 'v6': '0dB',
+                'f7': '0', 'v7': '0dB',
+                'f8': '1', 'v8': '1',
+                'f11': '0', 'v11': '0',
+                'f13': '1', 'v13': '1.0'
+            };
+
+            for (let id in resets) {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (el.tagName === 'INPUT') el.value = resets[id];
+                    else el.innerText = resets[id];
+                }
+            }
+        }
+
         function removeTrack(ti, event) { event.stopPropagation(); if(confirm("DELETE?")) { library[curV].tracks.splice(ti, 1); db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV); } }
     </script>
 </body>
