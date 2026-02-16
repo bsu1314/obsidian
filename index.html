@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>[obsidian]</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><radialGradient id=%22g%22 cx=%2240%%22 cy=%2240%%22 r=%2260%%22 fx=%2235%%22 fy=%2235%%22><stop offset=%220%%22 stop-color=%22%23fff%22/><stop offset=%2230%%22 stop-color=%22%23a0a0a0%22/><stop offset=%22100%%22 stop-color=%22%23222%22/></radialGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22url(%23g)%22 stroke=%22%23000%22 stroke-width=%221%22/></svg>">
+    
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <style>
@@ -155,8 +157,6 @@
         let db, library = [], curV = null, curT = null, audio = new Audio();
         let audioCtx, nodes = {}, isCrossfading = false;
         let draggedTrackIdx = null;
-
-        // FIXED: Global tracking for currently playing project
         let playingProjectId = null;
 
         const req = indexedDB.open("ObsidianStudio", 7);
@@ -172,7 +172,6 @@
 
         const dz = document.getElementById('dropZone');
         dz.onclick = () => document.getElementById('fileIn').click();
-        
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
             dz.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
         });
@@ -184,7 +183,6 @@
             handleFiles(e.dataTransfer.files, false);
         }, false);
 
-        // COVER ART DRAG AND DROP
         const cvz = document.getElementById('vaultCoverZone');
         cvz.addEventListener('dragover', e => { e.preventDefault(); cvz.style.borderColor = 'var(--active)'; });
         cvz.addEventListener('dragleave', () => cvz.style.borderColor = 'var(--border)');
@@ -196,9 +194,6 @@
                 const r = new FileReader();
                 r.onload = ev => updateProjectField('cover', ev.target.result);
                 r.readAsDataURL(file);
-            } else {
-                const url = e.dataTransfer.getData('text/plain');
-                if (url) updateProjectField('cover', url);
             }
         });
 
@@ -232,7 +227,6 @@
                 });
             }));
             if(tracks.length === 0) return;
-            tracks.sort((a, b) => (a.meta.track || 0) - (b.meta.track || 0));
             const tx = db.transaction("projects", "readwrite");
             const store = tx.objectStore("projects");
             if(append && curV !== null) {
@@ -240,17 +234,10 @@
                 store.put(library[curV]).onsuccess = () => renderProject(curV);
             } else {
                 const first = tracks[0].meta;
-                let coverData = null;
-                if (first.picture) {
-                    const { data, format } = first.picture;
-                    let base64String = "";
-                    for (let i = 0; i < data.length; i++) base64String += String.fromCharCode(data[i]);
-                    coverData = `data:${format};base64,${window.btoa(base64String)}`;
-                }
                 const newProject = { 
                     title: (first.album || "NEW PROJECT").toUpperCase(), 
                     artist: (first.artist || "UNKNOWN").toUpperCase(), 
-                    cover: coverData, 
+                    cover: null, 
                     tracks: tracks.map(t => ({ title: t.title, data: t.data })) 
                 };
                 store.add(newProject).onsuccess = () => sync().then(() => showState('gridState'));
@@ -271,10 +258,8 @@
             nodes.pan = audioCtx.createStereoPanner();
             nodes.gain = audioCtx.createGain();
             nodes.analyser = audioCtx.createAnalyser();
-            nodes.analyser.fftSize = 256;
             src.connect(nodes.lp).connect(nodes.hp).connect(nodes.bass).connect(nodes.mid).connect(nodes.treble).connect(nodes.dist).connect(nodes.comp).connect(nodes.pan).connect(nodes.gain).connect(nodes.analyser).connect(audioCtx.destination);
-            setupFX();
-            drawWave();
+            setupFX(); drawWave();
         }
 
         function drawWave() {
@@ -284,8 +269,7 @@
             const render = () => {
                 requestAnimationFrame(render);
                 nodes.analyser.getByteFrequencyData(data);
-                ctx.fillStyle = '#000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
                 const barWidth = (canvas.width / data.length) * 2.5;
                 let x = 0;
                 for(let i=0; i<data.length; i++) {
@@ -298,73 +282,21 @@
             render();
         }
 
-        window.addEventListener('keydown', e => {
-            if(e.target.tagName === 'INPUT') return;
-            if(e.code === 'Space') { e.preventDefault(); audio.paused ? audio.play() : audio.pause(); }
-            if(e.code === 'KeyF') toggleFx();
-            if(e.code === 'KeyR') resetFX();
-            if(e.code === 'ArrowRight') audio.currentTime += 5;
-            if(e.code === 'ArrowLeft') audio.currentTime -= 5;
-        });
-
-        function setupFX() {
-            const b = (id, n, p, d, u="") => {
-                document.getElementById(id).oninput = e => {
-                    if(n && p) n[p].value = parseFloat(e.target.value);
-                    document.getElementById(d).innerText = e.target.value + u;
-                };
-            };
-            document.getElementById('f1').oninput = e => { audio.playbackRate = e.target.value; document.getElementById('v1').innerText = e.target.value; };
-            b('f2', nodes.lp, 'frequency', 'v2', 'Hz');
-            b('f3', nodes.hp, 'frequency', 'v3', 'Hz');
-            document.getElementById('f4').oninput = e => { nodes.dist.curve = makeDistCurve(e.target.value * 2); document.getElementById('v4').innerText = e.target.value; };
-            b('f5', nodes.bass, 'gain', 'v5', 'dB');
-            b('f6', nodes.mid, 'gain', 'v6', 'dB');
-            b('f7', nodes.treble, 'gain', 'v7', 'dB');
-            b('f8', nodes.comp, 'ratio', 'v8');
-            b('f11', nodes.pan, 'pan', 'v11');
-            b('f13', nodes.gain, 'gain', 'v13');
-        }
-
-        function makeDistCurve(a) {
-            let n = 44100, curve = new Float32Array(n), deg = Math.PI / 180;
-            for (let i = 0; i < n; ++i) { let x = i * 2 / n - 1; curve[i] = (3 + a) * x * 20 * deg / (Math.PI + a * Math.abs(x)); }
-            return curve;
-        }
-
-        function resetFX() {
-            const defs = {f1:1, f2:20000, f3:0, f4:0, f5:0, f6:0, f7:0, f8:1, f11:0, f13:1};
-            Object.keys(defs).forEach(id => { let el = document.getElementById(id); el.value = defs[id]; el.dispatchEvent(new Event('input')); });
-        }
-
         function playTrack(vi, ti) {
             initAudio();
             const project = library[vi];
-            // FIXED BUG: Compare Project ID and Track index for highlight accuracy
             if(playingProjectId === project.id && curT === ti && !audio.paused) { 
                 audio.pause(); 
             } else {
-                isCrossfading = false;
-                playingProjectId = project.id; 
-                curV = vi; curT = ti;
+                playingProjectId = project.id; curV = vi; curT = ti;
                 const t = project.tracks[ti];
                 audio.src = URL.createObjectURL(new Blob([t.data], { type: 'audio/mpeg' }));
-                audio.play();
-                updatePlayerUI();
+                audio.play(); updatePlayerUI();
             }
         }
 
-        audio.ontimeupdate = () => {
-            document.getElementById('seekBar').value = (audio.currentTime / audio.duration) * 100 || 0;
-            if(document.getElementById('xFadeToggle').checked && !isCrossfading && audio.duration - audio.currentTime < 5) {
-                isCrossfading = true;
-                const masterVol = parseFloat(document.getElementById('f13').value);
-                nodes.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 4.8);
-                setTimeout(() => { prevNext(1); nodes.gain.gain.linearRampToValueAtTime(masterVol, audioCtx.currentTime + 1); }, 4800);
-            }
-        };
-
-        audio.onended = () => { if(!document.getElementById('xFadeToggle').checked) prevNext(1); };
+        audio.ontimeupdate = () => { document.getElementById('seekBar').value = (audio.currentTime / audio.duration) * 100 || 0; };
+        audio.onended = () => prevNext(1);
         audio.onplay = () => updatePlayerUI();
         audio.onpause = () => updatePlayerUI();
 
@@ -375,37 +307,6 @@
             if(n >= 0 && n < library[activeIdx].tracks.length) playTrack(activeIdx, n);
         }
 
-        function removeTrack(ti, event) {
-            event.stopPropagation();
-            if(!confirm("DELETE SONG?")) return;
-            library[curV].tracks.splice(ti, 1);
-            db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
-        }
-
-        function handleDragStart(e, index) {
-            draggedTrackIdx = index;
-            e.currentTarget.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        }
-
-        function handleDrop(e, targetIdx) {
-            e.preventDefault();
-            if (draggedTrackIdx === null || draggedTrackIdx === targetIdx) return;
-            const tracks = library[curV].tracks;
-            const movedItem = tracks.splice(draggedTrackIdx, 1)[0];
-            tracks.splice(targetIdx, 0, movedItem);
-            if (curT === draggedTrackIdx) curT = targetIdx;
-            else if (draggedTrackIdx < curT && targetIdx >= curT) curT--;
-            else if (draggedTrackIdx > curT && targetIdx <= curT) curT++;
-            db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
-            draggedTrackIdx = null;
-        }
-
         function renderProject(idx) {
             curV = idx; const p = library[idx];
             showState('vaultState');
@@ -414,20 +315,13 @@
             const img = document.getElementById('vCover');
             if(p.cover) { img.src = p.cover; img.style.display = 'block'; document.getElementById('vIcon').style.display = 'none'; }
             else { img.style.display = 'none'; document.getElementById('vIcon').style.display = 'block'; }
-            
             document.getElementById('bigPlayBtn').onclick = () => playTrack(idx, 0);
 
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
-                // FIXED BUG: Highlighting now checks global project ID
                 const isPlaying = (curT === i && !audio.paused && playingProjectId === p.id);
                 const row = document.createElement('div'); 
                 row.className = `track-row ${isPlaying ? 'active' : ''}`;
-                row.draggable = true;
-                row.ondragstart = (e) => handleDragStart(e, i);
-                row.ondragover = (e) => handleDragOver(e);
-                row.ondrop = (e) => handleDrop(e, i);
-                row.ondragend = (e) => e.currentTarget.classList.remove('dragging');
                 row.onclick = () => playTrack(idx, i);
                 row.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">${isPlaying ? 'pause' : 'play_arrow'}</span>
                                  <div class="t-name">${t.title}</div>
@@ -437,21 +331,22 @@
             });
         }
 
+        function editTrackTitle(ti, event) {
+            event.stopPropagation();
+            const currentTitle = library[curV].tracks[ti].title;
+            const newTitle = prompt("RENAME TRACK:", currentTitle);
+            if (newTitle && newTitle.trim() !== "") {
+                library[curV].tracks[ti].title = newTitle.toUpperCase();
+                db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV);
+            }
+        }
+
         function updatePlayerUI() {
             const activeProject = library.find(p => p.id === playingProjectId);
             if(!activeProject) return;
-            const t = activeProject.tracks[curT];
             document.getElementById('playerBar').style.display = 'flex';
-            document.getElementById('pTrack').innerText = t.title;
+            document.getElementById('pTrack').innerText = activeProject.tracks[curT].title;
             document.getElementById('pDetails').innerText = `${activeProject.artist} — ${activeProject.title}`;
-            if(activeProject.cover) { 
-                document.getElementById('pThumb').src = activeProject.cover; 
-                document.getElementById('pThumb').style.display = 'block'; 
-                document.getElementById('pIcon').style.display = 'none'; 
-            } else { 
-                document.getElementById('pThumb').style.display = 'none'; 
-                document.getElementById('pIcon').style.display = 'flex'; 
-            }
             document.getElementById('playBtn').innerText = audio.paused ? 'play_circle' : 'pause_circle';
             renderSidebar();
             if(curV !== null && library[curV].id === playingProjectId) renderProject(curV);
@@ -460,21 +355,17 @@
         function updateProjectField(f, v) { if(curV!==null) { library[curV][f] = v; db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => { renderSidebar(); renderGrid(); updatePlayerUI(); }; } }
         document.getElementById('vTitle').oninput = e => updateProjectField('title', e.target.value.toUpperCase());
         document.getElementById('vArtist').oninput = e => updateProjectField('artist', e.target.value.toUpperCase());
-        document.getElementById('coverIn').onchange = e => { const r = new FileReader(); r.onload = ev => updateProjectField('cover', ev.target.result); r.readAsDataURL(e.target.files[0]); };
         document.getElementById('playBtn').onclick = () => audio.paused ? audio.play() : audio.pause();
         document.getElementById('volBar').oninput = e => audio.volume = e.target.value;
         document.getElementById('seekBar').oninput = e => audio.currentTime = (e.target.value / 100) * audio.duration;
         
         function renderSidebar() { 
-            const s = document.getElementById('sideProjects'); 
-            s.innerHTML = ''; 
+            const s = document.getElementById('sideProjects'); s.innerHTML = ''; 
             library.forEach((p,i) => { 
-                const isPlaying = (p.id === playingProjectId);
                 const d = document.createElement('div'); 
-                d.className = `nav-item ${curV===i?'active':''} ${isPlaying ? 'playing-now' : ''}`; 
-                d.innerHTML = (p.cover?`<img src="${p.cover}" style="width:20px;height:20px;object-fit:cover;border:1px solid #222;"> `:`<span class="material-symbols-outlined" style="font-size:14px">album</span> `)+p.title; 
-                d.onclick = () => renderProject(i); 
-                s.appendChild(d); 
+                d.className = `nav-item ${curV===i?'active':''} ${p.id===playingProjectId ? 'playing-now' : ''}`; 
+                d.innerHTML = (p.cover?`<img src="${p.cover}" style="width:20px;height:20px;object-fit:cover;"> `:`<span class="material-symbols-outlined" style="font-size:14px">album</span> `)+p.title; 
+                d.onclick = () => renderProject(i); s.appendChild(d); 
             }); 
         }
 
@@ -482,21 +373,9 @@
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
         function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
         function deleteCurrent() { if(confirm("DELETE?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => location.reload(); } }
-        
-        function editTrackTitle(ti, event) {
-            event.stopPropagation();
-            const trackRow = event.target.closest('.track-row');
-            const titleElement = trackRow.querySelector('.t-name');
-            const currentTitle = library[curV].tracks[ti].title;
-            const newTitle = prompt("RENAME TRACK:", currentTitle);
-            if (newTitle && newTitle.trim() !== "" && newTitle !== currentTitle) {
-                const clean = newTitle.trim().toUpperCase();
-                titleElement.innerText = clean;
-                library[curV].tracks[ti].title = clean;
-                if (curT === ti && library[curV].id === playingProjectId) document.getElementById('pTrack').innerText = clean;
-                db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]);
-            }
-        }
+        function setupFX() { document.getElementById('f1').oninput = e => { audio.playbackRate = e.target.value; document.getElementById('v1').innerText = e.target.value; }; }
+        function resetFX() { audio.playbackRate = 1; document.getElementById('f1').value = 1; document.getElementById('v1').innerText = "1.0"; }
+        function removeTrack(ti, event) { event.stopPropagation(); if(confirm("DELETE?")) { library[curV].tracks.splice(ti, 1); db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => renderProject(curV); } }
     </script>
 </body>
 </html>
