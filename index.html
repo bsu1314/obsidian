@@ -11,18 +11,20 @@
         body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; display: flex; height: 100vh; overflow: hidden; text-transform: uppercase; }
         aside { width: 260px; border-right: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; background: #000; z-index: 10; }
         #logoBtn { font-weight: bold; margin-bottom: 30px; cursor: pointer; letter-spacing: 2px; color: #fff; font-size: 1.2rem; }
+        nav { flex-grow: 1; overflow-y: auto; scrollbar-width: none; }
+        nav::-webkit-scrollbar { display: none; }
         .nav-item { color: var(--gray); display: flex; align-items: center; gap: 10px; font-size: 0.7rem; cursor: pointer; margin-bottom: 15px; transition: 0.2s; position: relative; }
         .nav-item:hover, .nav-item.active { color: #fff; }
         .nav-item img { width: 18px; height: 18px; object-fit: cover; border-radius: 2px; }
         .nav-item.playing-now { color: var(--active) !important; font-weight: bold; border-right: 2px solid var(--active); }
-        #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; max-height: 500px; overflow-y: auto; scrollbar-width: thin; }
+        #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; max-height: 400px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #333 transparent; }
         .fx-row { margin-bottom: 12px; }
         .fx-row label { font-size: 0.5rem; color: var(--gray); display: flex; justify-content: space-between; margin-bottom: 4px; }
         input[type="range"] { width: 100%; -webkit-appearance: none; background: #222; height: 1px; outline: none; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; background: var(--active); cursor: pointer; }
-        main { flex-grow: 1; position: relative; overflow-y: auto; padding-bottom: 150px; }
-        .state-container { display: none; width: 100%; height: 100%; flex-direction: column; }
-        .vault-content { padding: 40px; display: flex; flex-direction: column; }
+        main { flex-grow: 1; position: relative; overflow: hidden; }
+        .state-container { display: none; width: 100%; height: 100%; flex-direction: column; overflow-y: auto; padding-bottom: 120px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
+        .vault-content { padding: 40px; display: flex; flex-direction: column; max-width: 900px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         .vault-header { display: flex; gap: 30px; margin-bottom: 40px; align-items: flex-start; }
         .cover-col { display: flex; flex-direction: column; align-items: center; gap: 15px; flex-shrink: 0; }
         .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
@@ -62,7 +64,7 @@
                 <div class="fx-row"><label>8. COMPRESS <span id="v8">1</span></label><input type="range" id="f8" min="1" max="20" step="0.1" value="1"></div>
                 <div class="fx-row"><label>11. PAN <span id="v11">0</span></label><input type="range" id="f11" min="-1" max="1" step="0.1" value="0"></div>
                 <div class="fx-row"><label>13. MASTER <span id="v13">1.0</span></label><input type="range" id="f13" min="0" max="2" step="0.01" value="1"></div>
-                <button onclick="resetFX()" style="width:100%; background:#111; color:var(--active); border:1px solid #333; font-size:0.5rem; padding:8px; cursor:pointer;">RESET ALL FX</button>
+                <button onclick="resetFX()" style="width:100%; background:#111; color:var(--active); border:1px solid #333; font-size:0.5rem; padding:8px; cursor:pointer; margin-bottom: 10px;">RESET ALL FX</button>
             </div>
             <hr style="border:0; border-top:1px solid #111; margin:15px 0;">
             <div id="sideProjects"></div>
@@ -88,7 +90,7 @@
                             <img id="vCover" src="" style="display:none;"><span id="vIcon" class="material-symbols-outlined">image</span>
                             <input type="file" id="coverIn" accept="image/*" style="display:none;">
                         </div>
-                        <span class="material-symbols-outlined big-play-btn" onclick="playTrack(curV, 0)">play_circle</span>
+                        <span class="material-symbols-outlined big-play-btn" id="bigPlayBtn" onclick="toggleMainPlay()">play_circle</span>
                     </div>
                     <div style="flex-grow:1; padding-top: 10px;">
                         <input type="text" id="vTitle" placeholder="PROJECT TITLE" style="background:none; border:none; color:#fff; font-size:2.5rem; font-weight:bold; outline:none; width:100%;">
@@ -211,6 +213,14 @@
             audio.play(); updatePlayerUI(); renderProject(vi); renderSidebar();
         }
 
+        function toggleMainPlay() {
+            if (playingProjectId === library[curV].id) {
+                audio.paused ? audio.play() : audio.pause();
+            } else {
+                playTrack(curV, 0);
+            }
+        }
+
         function updatePlayerUI() {
             const p = library[curV];
             if(!p) return;
@@ -219,7 +229,17 @@
             document.getElementById('pArtist').innerText = p.title;
             document.getElementById('pThumb').src = p.cover || '';
             document.getElementById('pThumb').style.display = p.cover ? 'block' : 'none';
-            document.getElementById('playBtn').innerText = audio.paused ? 'play_circle' : 'pause_circle';
+            
+            const isPaused = audio.paused;
+            document.getElementById('playBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
+            
+            // Big button logic
+            const bigPlay = document.getElementById('bigPlayBtn');
+            if (playingProjectId === p.id) {
+                bigPlay.innerText = isPaused ? 'play_circle' : 'pause_circle';
+            } else {
+                bigPlay.innerText = 'play_circle';
+            }
         }
 
         function prevNext(dir) { 
@@ -240,6 +260,9 @@
             document.getElementById('vCover').src = p.cover || '';
             document.getElementById('vCover').style.display = p.cover ? 'block' : 'none';
             document.getElementById('vIcon').style.display = p.cover ? 'none' : 'block';
+            
+            updatePlayerUI(); // Update big button based on current project
+
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
                 const active = playingProjectId===p.id && curT===i;
@@ -247,7 +270,6 @@
                 row.className = `track-row ${active ? 'active' : ''}`;
                 row.draggable = true;
                 row.dataset.index = i;
-
 
                 row.ondragstart = (e) => { dragSourceIdx = i; e.target.classList.add('dragging'); };
                 row.ondragover = (e) => { e.preventDefault(); row.classList.add('drag-over'); };
@@ -259,7 +281,6 @@
                         const tracks = library[curV].tracks;
                         const [removed] = tracks.splice(dragSourceIdx, 1);
                         tracks.splice(i, 0, removed);
-              
                         if (playingProjectId === library[curV].id && curT === dragSourceIdx) curT = i;
                         save();
                     }
