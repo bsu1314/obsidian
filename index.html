@@ -222,10 +222,10 @@
             if(n >= 0 && n < library[curV].tracks.length) {
                 playTrack(curV, n);
             } else if (n >= library[curV].tracks.length) {
-                // If skipping past the last track, restart project
+               
                 playTrack(curV, 0);
             } else if (n < 0) {
-                // If skipping back from the first track, go to the last track
+               
                 playTrack(curV, library[curV].tracks.length - 1);
             }
         }
@@ -263,7 +263,7 @@
         document.getElementById('vTitle').onblur = save; document.getElementById('vArtist').onblur = save;
         document.getElementById('playBtn').onclick = () => audio.paused ? audio.play() : audio.pause();
         
-        // Progress Bar Logic
+        
         const sb = document.getElementById('seekBar');
         sb.onmousedown = () => isScrubbing = true;
         sb.onmouseup = () => isScrubbing = false;
@@ -272,13 +272,13 @@
         audio.onplay = updatePlayerUI; audio.onpause = updatePlayerUI;
         audio.ontimeupdate = () => { if(!isScrubbing) sb.value = (audio.currentTime/audio.duration)*100 || 0; };
         
-        // Autoplay and Restart logic
+     
         audio.onended = () => {
             let nextTrack = curT + 1;
             if(nextTrack < library[curV].tracks.length) {
                 playTrack(curV, nextTrack);
             } else {
-                // End of project reached: loop back to the first track
+             
                 playTrack(curV, 0);
             }
         };
