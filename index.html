@@ -46,7 +46,6 @@
             <div class="nav-item" onclick="showState('homeState')"><span class="material-symbols-outlined">add</span>NEW PROJECT</div>
             <div class="nav-item" onclick="showState('gridState')"><span class="material-symbols-outlined">grid_view</span>ALL PROJECTS</div>
             <div class="nav-item" onclick="toggleFx()"><span class="material-symbols-outlined">tune</span> FX </div>
-            
             <div id="fxPanel">
                 <canvas id="vCanvas" width="210" height="50" style="background:#000; border:1px solid #111; margin-bottom:15px;"></canvas>
                 <div class="fx-row"><label>1. PITCH <span id="v1">1.0</span></label><input type="range" id="f1" min="0.5" max="1.5" step="0.01" value="1"></div>
@@ -87,7 +86,6 @@
                         </div>
                         <span class="material-symbols-outlined big-play-btn" onclick="playTrack(curV, 0)">play_circle</span>
                     </div>
-                    
                     <div style="flex-grow:1; padding-top: 10px;">
                         <input type="text" id="vTitle" placeholder="PROJECT TITLE" style="background:none; border:none; color:#fff; font-size:2.5rem; font-weight:bold; outline:none; width:100%;">
                         <input type="text" id="vArtist" placeholder="ARTIST" style="background:none; border:none; color:var(--gray); font-size:0.9rem; outline:none; width:100%;">
@@ -104,7 +102,7 @@
     </main>
 
     <footer id="playerBar">
-        <input type="range" id="seekBar" value="0">
+        <input type="range" id="seekBar" value="0" min="0" max="100" step="0.1">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 40px;">
             <div style="display:flex; align-items:center; gap:15px; width:250px;"><img id="pThumb" class="p-thumb" src=""><div id="pTrackInfo"><div id="pTrack" style="font-size:0.7rem; color:var(--active); font-weight:bold;">---</div><div id="pArtist" style="font-size:0.5rem; color:var(--gray);">---</div></div></div>
             <div style="display:flex; gap:30px; align-items:center;"><span class="material-symbols-outlined" onclick="prevNext(-1)" style="cursor:pointer">skip_previous</span><span class="material-symbols-outlined" id="playBtn" style="cursor:pointer; font-size:35px;">play_circle</span><span class="material-symbols-outlined" onclick="prevNext(1)" style="cursor:pointer">skip_next</span></div>
@@ -114,7 +112,7 @@
 
     <script>
         let db=null, library=[], curV=null, curT=null, audio=new Audio();
-        let audioCtx, nodes={}, playingProjectId=null;
+        let audioCtx, nodes={}, playingProjectId=null, isScrubbing = false;
 
         const openDB = () => new Promise(res => {
             const req = indexedDB.open("ObsidianStudioFinal", 1);
@@ -122,9 +120,19 @@
             req.onsuccess = e => { db = e.target.result; res(db); };
         });
 
-        async function sync() {
+        async function sync(targetId = null) {
             if(!db) await openDB();
-            db.transaction("projects", "readonly").objectStore("projects").getAll().onsuccess = e => { library = e.target.result; renderSidebar(); renderGrid(); };
+            db.transaction("projects", "readonly").objectStore("projects").getAll().onsuccess = e => { 
+                library = e.target.result; 
+                renderSidebar(); 
+                renderGrid(); 
+                if (targetId !== null) {
+                    const idx = library.findIndex(p => p.id === targetId);
+                    if (idx !== -1) renderProject(idx);
+                } else if (curV !== null) {
+                    renderProject(curV);
+                }
+            };
         }
 
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
@@ -180,8 +188,14 @@
             for(let f of Array.from(files).filter(f => f.type.startsWith('audio/'))) {
                 const track = await new Promise(res => { window.jsmediatags.read(f, { onSuccess: tag => { const reader = new FileReader(); reader.onload = e => res({ title: (tag.tags.title || f.name.replace(/\.[^/.]+$/, "")).toUpperCase(), data: e.target.result }); reader.readAsArrayBuffer(f); }, onError: () => { const reader = new FileReader(); reader.onload = e => res({ title: f.name.replace(/\.[^/.]+$/, "").toUpperCase(), data: e.target.result }); reader.readAsArrayBuffer(f); } }); }); tracks.push(track);
             }
-            if(append) { library[curV].tracks.push(...tracks); save(); }
-            else { db.transaction("projects", "readwrite").objectStore("projects").add({ title: "NEW PROJECT", artist: "UNKNOWN", tracks, cover: null }).onsuccess = async e => { await sync(); renderProject(library.findIndex(p => p.id === e.target.result)); }; }
+            if(append && curV !== null) { 
+                library[curV].tracks.push(...tracks); 
+                save();
+            } else if (!append) { 
+                db.transaction("projects", "readwrite").objectStore("projects").add({ title: "NEW PROJECT", artist: "UNKNOWN", tracks, cover: null }).onsuccess = async e => { 
+                    await sync(e.target.result);
+                }; 
+            }
         }
 
         function playTrack(vi, ti) {
@@ -194,17 +208,30 @@
 
         function updatePlayerUI() {
             const p = library[curV];
+            if(!p) return;
             document.getElementById('playerBar').style.display = 'flex';
-            document.getElementById('pTrack').innerText = p.tracks[curT].title;
+            document.getElementById('pTrack').innerText = p.tracks[curT] ? p.tracks[curT].title : "---";
             document.getElementById('pArtist').innerText = p.title;
             document.getElementById('pThumb').src = p.cover || '';
             document.getElementById('pThumb').style.display = p.cover ? 'block' : 'none';
             document.getElementById('playBtn').innerText = audio.paused ? 'play_circle' : 'pause_circle';
         }
 
-        function prevNext(dir) { let n = curT + dir; if(n >= 0 && n < library[curV].tracks.length) playTrack(curV, n); }
+        function prevNext(dir) { 
+            let n = curT + dir; 
+            if(n >= 0 && n < library[curV].tracks.length) {
+                playTrack(curV, n);
+            } else if (n >= library[curV].tracks.length) {
+                // If skipping past the last track, restart project
+                playTrack(curV, 0);
+            } else if (n < 0) {
+                // If skipping back from the first track, go to the last track
+                playTrack(curV, library[curV].tracks.length - 1);
+            }
+        }
 
         function renderProject(idx) {
+            if (idx === null || !library[idx]) return;
             curV = idx; const p = library[idx]; showState('vaultState');
             document.getElementById('vTitle').value = p.title; document.getElementById('vArtist').value = p.artist;
             document.getElementById('vCover').src = p.cover || '';
@@ -235,8 +262,27 @@
         document.getElementById('coverIn').onchange = e => { const r = new FileReader(); r.onload = ev => { library[curV].cover = ev.target.result; save(); }; r.readAsDataURL(e.target.files[0]); };
         document.getElementById('vTitle').onblur = save; document.getElementById('vArtist').onblur = save;
         document.getElementById('playBtn').onclick = () => audio.paused ? audio.play() : audio.pause();
+        
+        // Progress Bar Logic
+        const sb = document.getElementById('seekBar');
+        sb.onmousedown = () => isScrubbing = true;
+        sb.onmouseup = () => isScrubbing = false;
+        sb.oninput = () => { if(audio.duration) audio.currentTime = (sb.value / 100) * audio.duration; };
+
         audio.onplay = updatePlayerUI; audio.onpause = updatePlayerUI;
-        audio.ontimeupdate = () => document.getElementById('seekBar').value = (audio.currentTime/audio.duration)*100 || 0;
+        audio.ontimeupdate = () => { if(!isScrubbing) sb.value = (audio.currentTime/audio.duration)*100 || 0; };
+        
+        // Autoplay and Restart logic
+        audio.onended = () => {
+            let nextTrack = curT + 1;
+            if(nextTrack < library[curV].tracks.length) {
+                playTrack(curV, nextTrack);
+            } else {
+                // End of project reached: loop back to the first track
+                playTrack(curV, 0);
+            }
+        };
+
         openDB().then(() => sync());
     </script>
 </body>
