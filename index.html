@@ -248,7 +248,7 @@
         }
 
         function playTrack(vi, ti) {
-            // If already playing this track, toggle pause
+            
             if (playingProjectId === library[vi].id && curT === ti) {
                 audio.paused ? audio.play() : audio.pause();
                 return;
@@ -281,7 +281,7 @@
             const isPaused = audio.paused;
             document.getElementById('playBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
             
-            // Big play btn update
+           
             const bigPlay = document.getElementById('bigPlayBtn');
             if (playingProjectId === p.id) {
                 bigPlay.innerText = isPaused ? 'play_circle' : 'pause_circle';
@@ -289,7 +289,7 @@
                 bigPlay.innerText = 'play_circle';
             }
 
-            // Sync tracklist icons
+           
             const trackIcons = document.querySelectorAll('.track-play-icon');
             trackIcons.forEach((icon, idx) => {
                 const isActive = (playingProjectId === p.id && curT === idx);
@@ -376,7 +376,7 @@
             } 
         }
 
-        // Cover Art Drag and Drop Logic
+       
         const coverArea = document.getElementById('coverDropArea');
         coverArea.addEventListener('dragover', e => { e.preventDefault(); coverArea.classList.add('drag-over'); });
         coverArea.addEventListener('dragleave', () => coverArea.classList.remove('drag-over'));
