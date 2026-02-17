@@ -30,6 +30,7 @@
         .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
         .cover-art img { width: 100%; height: 100%; object-fit: cover; }
         .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; cursor: pointer; }
+        .track-row:hover { background: #0a0a0a; color: #fff; }
         .track-row.active { color: var(--active); background: #0a0000; }
         .track-row.dragging { opacity: 0.4; background: #222; }
         .track-row.drag-over { border-top: 1px solid var(--active); }
@@ -192,14 +193,57 @@
 
         async function handleFiles(files, append = false) {
             const tracks = [];
+            let albumTitle = "NEW PROJECT";
+            let artistName = "UNKNOWN";
+            let coverData = null;
+
             for(let f of Array.from(files).filter(f => f.type.startsWith('audio/'))) {
-                const track = await new Promise(res => { window.jsmediatags.read(f, { onSuccess: tag => { const reader = new FileReader(); reader.onload = e => res({ title: (tag.tags.title || f.name.replace(/\.[^/.]+$/, "")).toUpperCase(), data: e.target.result }); reader.readAsArrayBuffer(f); }, onError: () => { const reader = new FileReader(); reader.onload = e => res({ title: f.name.replace(/\.[^/.]+$/, "").toUpperCase(), data: e.target.result }); reader.readAsArrayBuffer(f); } }); }); tracks.push(track);
+                const track = await new Promise(res => { 
+                    window.jsmediatags.read(f, { 
+                        onSuccess: tag => { 
+                            if(tag.tags.album) albumTitle = tag.tags.album.toUpperCase();
+                            if(tag.tags.artist) artistName = tag.tags.artist.toUpperCase();
+                            if(tag.tags.picture && !coverData) {
+                                const { data, format } = tag.tags.picture;
+                                let base64String = "";
+                                for (let i = 0; i < data.length; i++) base64String += String.fromCharCode(data[i]);
+                                coverData = `data:${format};base64,${window.btoa(base64String)}`;
+                            }
+                            const reader = new FileReader(); 
+                            reader.onload = e => res({ 
+                                title: (tag.tags.title || f.name.replace(/\.[^/.]+$/, "")).toUpperCase(), 
+                                trackNum: tag.tags.track || 999,
+                                data: e.target.result 
+                            }); 
+                            reader.readAsArrayBuffer(f); 
+                        }, 
+                        onError: () => { 
+                            const reader = new FileReader(); 
+                            reader.onload = e => res({ 
+                                title: f.name.replace(/\.[^/.]+$/, "").toUpperCase(), 
+                                trackNum: 999,
+                                data: e.target.result 
+                            }); 
+                            reader.readAsArrayBuffer(f); 
+                        } 
+                    }); 
+                }); 
+                tracks.push(track);
             }
+
+            // Sort by metadata track number
+            tracks.sort((a, b) => a.trackNum - b.trackNum);
+
             if(append && curV !== null) { 
                 library[curV].tracks.push(...tracks); 
                 save();
             } else if (!append) { 
-                db.transaction("projects", "readwrite").objectStore("projects").add({ title: "NEW PROJECT", artist: "UNKNOWN", tracks, cover: null }).onsuccess = async e => { 
+                db.transaction("projects", "readwrite").objectStore("projects").add({ 
+                    title: albumTitle, 
+                    artist: artistName, 
+                    tracks, 
+                    cover: coverData 
+                }).onsuccess = async e => { 
                     await sync(e.target.result);
                 }; 
             }
@@ -233,7 +277,6 @@
             const isPaused = audio.paused;
             document.getElementById('playBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
             
-            // Big button logic
             const bigPlay = document.getElementById('bigPlayBtn');
             if (playingProjectId === p.id) {
                 bigPlay.innerText = isPaused ? 'play_circle' : 'pause_circle';
@@ -261,7 +304,7 @@
             document.getElementById('vCover').style.display = p.cover ? 'block' : 'none';
             document.getElementById('vIcon').style.display = p.cover ? 'none' : 'block';
             
-            updatePlayerUI(); // Update big button based on current project
+            updatePlayerUI();
 
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
@@ -288,14 +331,18 @@
                 row.ondragend = () => { row.classList.remove('dragging'); };
 
                 row.innerHTML = `
-                    <span class="material-symbols-outlined drag-handle">drag_indicator</span>
-                    <span class="material-symbols-outlined" onclick="playTrack(${idx}, ${i})">${active && !audio.paused ? 'pause' : 'play_arrow'}</span>
-                    <div class="t-name" onclick="playTrack(${idx}, ${i})">
-                        <span>${t.title}</span>
-                        <span class="material-symbols-outlined" style="font-size:12px; opacity:0.3;" onclick="editTrack(${i}, event)">edit</span>
+                    <span class="material-symbols-outlined drag-handle" onclick="event.stopPropagation()">drag_indicator</span>
+                    <span class="material-symbols-outlined" onclick="event.stopPropagation(); playTrack(${idx}, ${i})">${active && !audio.paused ? 'pause' : 'play_arrow'}</span>
+                    <div class="t-name">
+                        <span style="flex-grow:1">${t.title}</span>
+                        <span class="material-symbols-outlined" style="font-size:12px; opacity:0.3;" onclick="event.stopPropagation(); editTrack(${i}, event)">edit</span>
                     </div>
-                    <span class="material-symbols-outlined" onclick="removeTrack(${i}, event)">delete</span>
+                    <span class="material-symbols-outlined" onclick="event.stopPropagation(); removeTrack(${i}, event)">delete</span>
                 `;
+                
+                // Track click to play
+                row.onclick = () => playTrack(idx, i);
+                
                 list.appendChild(row);
             });
         }
