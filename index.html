@@ -5,45 +5,37 @@
     <title>[obsidian]</title>
     <link rel="icon" type="image/png" href="https://static.wikia.nocookie.net/minecraft_gamepedia/images/9/99/Obsidian_JE3_BE2.png">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <style>
         :root { --bg: #050505; --gray: #555; --border: #1a1a1a; --active: #ff0436; --text: #eee; }
         body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; display: flex; height: 100vh; overflow: hidden; text-transform: uppercase; }
-        aside { width: 260px; border-right: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; background: #000; z-index: 10; }
+        aside { width: 260px; border-right: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; background: #000; z-index: 10; flex-shrink: 0; }
         #logoBtn { font-weight: bold; margin-bottom: 30px; cursor: pointer; letter-spacing: 2px; color: #fff; font-size: 1.2rem; }
         nav { flex-grow: 1; overflow-y: auto; scrollbar-width: none; }
-        nav::-webkit-scrollbar { display: none; }
-        .nav-item { color: var(--gray); display: flex; align-items: center; gap: 10px; font-size: 0.7rem; cursor: pointer; margin-bottom: 15px; transition: 0.2s; position: relative; }
+        .nav-item { color: var(--gray); display: flex; align-items: center; gap: 10px; font-size: 0.7rem; cursor: pointer; margin-bottom: 15px; transition: 0.2s; }
         .nav-item:hover, .nav-item.active { color: #fff; }
         .nav-item img { width: 18px; height: 18px; object-fit: cover; border-radius: 2px; }
         .nav-item.playing-now { color: var(--active) !important; font-weight: bold; border-right: 2px solid var(--active); }
-        #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; max-height: 400px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #333 transparent; }
+        #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; }
         .fx-row { margin-bottom: 12px; }
         .fx-row label { font-size: 0.5rem; color: var(--gray); display: flex; justify-content: space-between; margin-bottom: 4px; }
         input[type="range"] { width: 100%; -webkit-appearance: none; background: #222; height: 1px; outline: none; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; background: var(--active); cursor: pointer; }
         main { flex-grow: 1; position: relative; overflow: hidden; }
-        .state-container { display: none; width: 100%; height: 100%; flex-direction: column; overflow-y: auto; padding-bottom: 120px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
+        .state-container { display: none; width: 100%; height: 100%; flex-direction: column; overflow-y: auto; padding-bottom: 120px; }
+        #dropZone { width: 450px; height: 250px; border: 1px dashed var(--gray); display: flex; flex-direction: column; align-items: center; justify-content: center; background: #080808; cursor: pointer; }
         .vault-content { padding: 40px; display: flex; flex-direction: column; max-width: 900px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         .vault-header { display: flex; gap: 30px; margin-bottom: 40px; align-items: flex-start; }
-        .cover-col { display: flex; flex-direction: column; align-items: center; gap: 15px; flex-shrink: 0; }
-        .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
+        .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
         .cover-art img { width: 100%; height: 100%; object-fit: cover; }
-        .cover-art.drag-over { border-color: var(--active); background: #1a0000; }
         .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; cursor: pointer; }
         .track-row:hover { background: #0a0a0a; color: #fff; }
         .track-row.active { color: var(--active); background: #0a0000; }
-        .track-row.dragging { opacity: 0.4; background: #222; }
-        .track-row.drag-over { border-top: 1px solid var(--active); }
-        .drag-handle { cursor: grab; opacity: 0.3; transition: 0.2s; }
-        .drag-handle:hover { opacity: 1; color: var(--active); }
-        .t-name { flex-grow: 1; display: flex; align-items: center; gap: 10px; }
+        .track-title-input { background: none; border: none; color: inherit; font-family: inherit; font-size: inherit; text-transform: uppercase; width: 100%; outline: none; pointer-events: auto; }
+        .trade-icon { font-size: 18px !important; cursor: pointer; opacity: 0.4; }
+        .trade-icon:hover { opacity: 1; color: var(--active); }
         #playerBar { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: #000; border-top: 1px solid var(--border); display: none; flex-direction: column; z-index: 100; }
         #seekBar { width: 100%; height: 2px; -webkit-appearance: none; background: #111; cursor: pointer; outline: none; }
         #seekBar::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; background: var(--active); }
-        .p-thumb { width: 40px; height: 40px; background: #111; border: 1px solid #222; object-fit: cover; }
-        .big-play-btn { font-size: 60px !important; color: var(--active); cursor: pointer; transition: 0.2s; }
-        .big-play-btn:hover { transform: scale(1.1); }
     </style>
 </head>
 <body>
@@ -55,18 +47,18 @@
             <div class="nav-item" onclick="showState('gridState')"><span class="material-symbols-outlined">grid_view</span>ALL PROJECTS</div>
             <div class="nav-item" onclick="toggleFx()"><span class="material-symbols-outlined">tune</span> FX </div>
             <div id="fxPanel">
-                <canvas id="vCanvas" width="210" height="50" style="background:#000; border:1px solid #111; margin-bottom:15px;"></canvas>
-                <div class="fx-row"><label>1. PITCH <span id="v1">1.0</span></label><input type="range" id="f1" min="0.5" max="1.5" step="0.01" value="1"></div>
-                <div class="fx-row"><label>2. LOWPASS <span id="v2">20k</span></label><input type="range" id="f2" min="200" max="20000" step="1" value="20000"></div>
-                <div class="fx-row"><label>3. HIGHPASS <span id="v3">0</span></label><input type="range" id="f3" min="0" max="3000" step="1" value="0"></div>
-                <div class="fx-row"><label>4. DISTORT <span id="v4">0</span></label><input type="range" id="f4" min="0" max="100" step="1" value="0"></div>
-                <div class="fx-row"><label>5. BASS <span id="v5">0dB</span></label><input type="range" id="f5" min="-20" max="20" step="1" value="0"></div>
-                <div class="fx-row"><label>6. MID <span id="v6">0dB</span></label><input type="range" id="f6" min="-20" max="20" step="1" value="0"></div>
-                <div class="fx-row"><label>7. TREBLE <span id="v7">0dB</span></label><input type="range" id="f7" min="-20" max="20" step="1" value="0"></div>
-                <div class="fx-row"><label>8. COMPRESS <span id="v8">1</span></label><input type="range" id="f8" min="1" max="20" step="0.1" value="1"></div>
-                <div class="fx-row"><label>11. PAN <span id="v11">0</span></label><input type="range" id="f11" min="-1" max="1" step="0.1" value="0"></div>
-                <div class="fx-row"><label>13. MASTER <span id="v13">1.0</span></label><input type="range" id="f13" min="0" max="2" step="0.01" value="1"></div>
-                <button onclick="resetFX()" style="width:100%; background:#111; color:var(--active); border:1px solid #333; font-size:0.5rem; padding:8px; cursor:pointer; margin-bottom: 10px;">RESET ALL FX</button>
+                <canvas id="vCanvas" width="210" height="40" style="margin-bottom:10px;"></canvas>
+                <div class="fx-row"><label>PITCH <span id="v1">1.0</span></label><input type="range" id="f1" min="0.5" max="1.5" step="0.01" value="1"></div>
+                <div class="fx-row"><label>LOWPASS <span id="v2">22000</span></label><input type="range" id="f2" min="20" max="22000" step="1" value="22000"></div>
+                <div class="fx-row"><label>HIGHPASS <span id="v3">0</span></label><input type="range" id="f3" min="0" max="5000" step="1" value="0"></div>
+                <div class="fx-row"><label>DISTORT <span id="v4">0</span></label><input type="range" id="f4" min="0" max="100" step="1" value="0"></div>
+                <div class="fx-row"><label>BASS <span id="v5">0</span></label><input type="range" id="f5" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>MID <span id="v6">0</span></label><input type="range" id="f6" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>TREBLE <span id="v7">0</span></label><input type="range" id="f7" min="-20" max="20" step="1" value="0"></div>
+                <div class="fx-row"><label>COMPRESS <span id="v8">-24</span></label><input type="range" id="f8" min="-60" max="0" step="1" value="-24"></div>
+                <div class="fx-row"><label>PAN <span id="v9">0</span></label><input type="range" id="f9" min="-1" max="1" step="0.01" value="0"></div>
+                <div class="fx-row"><label>MASTER <span id="v10">1.0</span></label><input type="range" id="f10" min="0" max="2" step="0.01" value="1"></div>
+                <button onclick="resetFX()" style="width:100%; background:#111; color:var(--active); border:1px solid #333; font-size:0.5rem; padding:8px; cursor:pointer;">RESET FX</button>
             </div>
             <hr style="border:0; border-top:1px solid #111; margin:15px 0;">
             <div id="sideProjects"></div>
@@ -76,7 +68,7 @@
     <main>
         <div id="homeState" class="state-container" style="display:flex;">
             <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100%;">
-                <div id="dropZone" style="width:450px; height:250px; border:1px dashed var(--gray); display:flex; flex-direction:column; align-items:center; justify-content:center; background:#080808; cursor:pointer;">
+                <div id="dropZone" onclick="document.getElementById('fileIn').click()">
                     <span class="material-symbols-outlined" style="font-size:40px;">cloud_upload</span>
                     <div style="font-size:0.6rem; margin-top:15px;">DROP AUDIO TO SAMPLER</div>
                     <input type="file" id="fileIn" multiple accept="audio/*" style="display:none;">
@@ -87,19 +79,19 @@
         <div id="vaultState" class="state-container">
             <div class="vault-content">
                 <div class="vault-header">
-                    <div class="cover-col">
-                        <div id="coverDropArea" class="cover-art" onclick="document.getElementById('coverIn').click()">
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+                        <div class="cover-art" onclick="document.getElementById('coverIn').click()">
                             <img id="vCover" src="" style="display:none;"><span id="vIcon" class="material-symbols-outlined">image</span>
                             <input type="file" id="coverIn" accept="image/*" style="display:none;">
                         </div>
-                        <span class="material-symbols-outlined big-play-btn" id="bigPlayBtn" onclick="toggleMainPlay()">play_circle</span>
+                        <span class="material-symbols-outlined" id="bigPlayBtn" style="font-size:60px; color:var(--active); cursor:pointer;" onclick="toggleMainPlay()">play_circle</span>
                     </div>
                     <div style="flex-grow:1; padding-top: 10px;">
                         <input type="text" id="vTitle" placeholder="PROJECT TITLE" style="background:none; border:none; color:#fff; font-size:2.5rem; font-weight:bold; outline:none; width:100%;">
                         <input type="text" id="vArtist" placeholder="ARTIST" style="background:none; border:none; color:var(--gray); font-size:0.9rem; outline:none; width:100%;">
                         <div style="margin-top:25px; display:flex; gap:10px;">
                             <button onclick="document.getElementById('appendIn').click()" style="font-size:0.5rem; background:#111; color:#eee; border:1px solid #333; padding:8px 15px; cursor:pointer;">+ ADD TRACKS</button>
-                            <button onclick="deleteCurrent(event)" style="font-size:0.5rem; background:none; color:var(--active); border:1px solid #400; padding:8px 15px; cursor:pointer;">DELETE PROJECT</button>
+                            <button onclick="deleteProject()" style="font-size:0.5rem; background:#111; color:var(--active); border:1px solid #333; padding:8px 15px; cursor:pointer;">DELETE PROJECT</button>
                             <input type="file" id="appendIn" multiple accept="audio/*" style="display:none;">
                         </div>
                     </div>
@@ -109,19 +101,28 @@
         </div>
     </main>
 
+    <input type="file" id="tradeIn" accept="audio/*" style="display:none;">
+
     <footer id="playerBar">
         <input type="range" id="seekBar" value="0" min="0" max="100" step="0.1">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 40px;">
-            <div style="display:flex; align-items:center; gap:15px; width:250px;"><img id="pThumb" class="p-thumb" src=""><div id="pTrackInfo"><div id="pTrack" style="font-size:0.7rem; color:var(--active); font-weight:bold;">---</div><div id="pArtist" style="font-size:0.5rem; color:var(--gray);">---</div></div></div>
-            <div style="display:flex; gap:30px; align-items:center;"><span class="material-symbols-outlined" onclick="prevNext(-1)" style="cursor:pointer">skip_previous</span><span class="material-symbols-outlined" id="playBtn" style="cursor:pointer; font-size:35px;">play_circle</span><span class="material-symbols-outlined" onclick="prevNext(1)" style="cursor:pointer">skip_next</span></div>
+            <div style="display:flex; align-items:center; gap:15px; width:300px;">
+                <img id="pThumb" style="width:40px; height:40px; object-fit:cover; border:1px solid #222;">
+                <div><div id="pTrack" style="font-size:0.7rem; color:var(--active); font-weight:bold;">---</div><div id="pProj" style="font-size:0.5rem; color:var(--gray);">---</div></div>
+            </div>
+            <div style="display:flex; gap:30px; align-items:center;">
+                <span class="material-symbols-outlined" onclick="prevNext(-1)" style="cursor:pointer">skip_previous</span>
+                <span class="material-symbols-outlined" id="playBtn" style="cursor:pointer; font-size:35px;" onclick="toggleAudio()">play_circle</span>
+                <span class="material-symbols-outlined" onclick="prevNext(1)" style="cursor:pointer">skip_next</span>
+            </div>
             <div style="width:100px;"></div>
         </div>
     </footer>
 
     <script>
         let db=null, library=[], curV=null, curT=null, audio=new Audio();
-        let audioCtx, nodes={}, playingProjectId=null, isScrubbing = false;
-        let dragSourceIdx = null;
+        let playingProjectId=null, tradeIdx=null;
+        let ctx, source, analyzer, master, panner, lp, hp, dist, bass, mid, treble, comp;
 
         const openDB = () => new Promise(res => {
             const req = indexedDB.open("ObsidianStudioFinal", 1);
@@ -129,290 +130,203 @@
             req.onsuccess = e => { db = e.target.result; res(db); };
         });
 
-        async function sync(targetId = null) {
+        function initAudio() {
+            if (ctx) return;
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            source = ctx.createMediaElementSource(audio);
+            analyzer = ctx.createAnalyser();
+            master = ctx.createGain();
+            panner = ctx.createStereoPanner();
+            lp = ctx.createBiquadFilter(); lp.type = "lowpass";
+            hp = ctx.createBiquadFilter(); hp.type = "highpass";
+            dist = ctx.createWaveShaper();
+            comp = ctx.createDynamicsCompressor();
+            bass = ctx.createBiquadFilter(); bass.type = "lowshelf"; bass.frequency.value = 200;
+            mid = ctx.createBiquadFilter(); mid.type = "peaking"; mid.frequency.value = 1000;
+            treble = ctx.createBiquadFilter(); treble.type = "highshelf"; treble.frequency.value = 3000;
+            
+            source.connect(dist).connect(lp).connect(hp).connect(bass).connect(mid).connect(treble).connect(panner).connect(comp).connect(master).connect(analyzer).connect(ctx.destination);
+            drawVisualizer();
+        }
+
+        async function sync() {
             if(!db) await openDB();
             db.transaction("projects", "readonly").objectStore("projects").getAll().onsuccess = e => { 
-                library = e.target.result; 
-                renderSidebar(); 
-                renderGrid(); 
-                if (targetId !== null) {
-                    const idx = library.findIndex(p => p.id === targetId);
-                    if (idx !== -1) renderProject(idx);
-                } else if (curV !== null) {
-                    renderProject(curV);
-                }
+                library = e.target.result; renderSidebar(); renderGrid(); if (curV !== null) renderProject(curV);
             };
         }
 
         function showState(id) { document.querySelectorAll('.state-container').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
-        function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
-
-        function initAudio() {
-            if(audioCtx) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const src = audioCtx.createMediaElementSource(audio);
-            nodes.lp = audioCtx.createBiquadFilter(); nodes.lp.type = "lowpass";
-            nodes.hp = audioCtx.createBiquadFilter(); nodes.hp.type = "highpass";
-            nodes.dist = audioCtx.createWaveShaper();
-            nodes.bass = audioCtx.createBiquadFilter(); nodes.bass.type = "lowshelf"; nodes.bass.frequency.value = 200;
-            nodes.mid = audioCtx.createBiquadFilter(); nodes.mid.type = "peaking"; nodes.mid.frequency.value = 1000;
-            nodes.treble = audioCtx.createBiquadFilter(); nodes.treble.type = "highshelf"; nodes.treble.frequency.value = 3000;
-            nodes.comp = audioCtx.createDynamicsCompressor();
-            nodes.pan = audioCtx.createStereoPanner();
-            nodes.gain = audioCtx.createGain();
-            nodes.analyser = audioCtx.createAnalyser();
-            src.connect(nodes.lp).connect(nodes.hp).connect(nodes.bass).connect(nodes.mid).connect(nodes.treble).connect(nodes.dist).connect(nodes.comp).connect(nodes.pan).connect(nodes.gain).connect(nodes.analyser).connect(audioCtx.destination);
-            ['f1','f2','f3','f4','f5','f6','f7','f8','f11','f13'].forEach(id => document.getElementById(id).oninput = () => applyFX(id, document.getElementById(id).value));
-            drawWave();
-        }
-
-        function applyFX(id, val) {
-            if(!audioCtx) initAudio();
-            val = parseFloat(val); const vLabel = document.getElementById('v'+id.slice(1));
-            if(id==='f1') { audio.playbackRate = val; vLabel.innerText = val.toFixed(2); }
-            if(id==='f2') { nodes.lp.frequency.value = val; vLabel.innerText = (val/1000).toFixed(1)+'k'; }
-            if(id==='f3') { nodes.hp.frequency.value = val; vLabel.innerText = val; }
-            if(id==='f4') { vLabel.innerText = val; if(val==0) nodes.dist.curve = null; else { const k=val*5, c=new Float32Array(44100); for(let i=0;i<44100;i++){ let x=i*2/44100-1; c[i]=(3+k)*x*20*(Math.PI/180)/(Math.PI+k*Math.abs(x)); } nodes.dist.curve = c; } }
-            if(id==='f5') { nodes.bass.gain.value = val; vLabel.innerText = val+'dB'; }
-            if(id==='f6') { nodes.mid.gain.value = val; vLabel.innerText = val+'dB'; }
-            if(id==='f7') { nodes.treble.gain.value = val; vLabel.innerText = val+'dB'; }
-            if(id==='f8') { nodes.comp.ratio.value = val; vLabel.innerText = val; }
-            if(id==='f11') { nodes.pan.pan.value = val; vLabel.innerText = val; }
-            if(id==='f13') { nodes.gain.gain.value = val; vLabel.innerText = val.toFixed(1); }
-        }
-
-        function resetFX() {
-            const defs = {f1:1, f2:20000, f3:0, f4:0, f5:0, f6:0, f7:0, f8:1, f11:0, f13:1};
-            for(let id in defs) { document.getElementById(id).value = defs[id]; applyFX(id, defs[id]); }
-        }
-
-        function drawWave() {
-            const canvas = document.getElementById('vCanvas'), ctx = canvas.getContext('2d');
-            const data = new Uint8Array(nodes.analyser.frequencyBinCount);
-            const r = () => { requestAnimationFrame(r); nodes.analyser.getByteFrequencyData(data); ctx.fillStyle='#000'; ctx.fillRect(0,0,210,50); for(let i=0;i<30;i++){ ctx.fillStyle=data[i*4]>200?'#ff0436':'#333'; ctx.fillRect(i*7,50-data[i*4]/6,5,data[i*4]/6); } }; r();
-        }
-
-        async function handleFiles(files, append = false) {
-            const tracks = [];
-            let albumTitle = "NEW PROJECT";
-            let artistName = "UNKNOWN";
-            let coverData = null;
-
-            for(let f of Array.from(files).filter(f => f.type.startsWith('audio/'))) {
-                const track = await new Promise(res => { 
-                    window.jsmediatags.read(f, { 
-                        onSuccess: tag => { 
-                            if(tag.tags.album) albumTitle = tag.tags.album.toUpperCase();
-                            if(tag.tags.artist) artistName = tag.tags.artist.toUpperCase();
-                            if(tag.tags.picture && !coverData) {
-                                const { data, format } = tag.tags.picture;
-                                let base64String = "";
-                                for (let i = 0; i < data.length; i++) base64String += String.fromCharCode(data[i]);
-                                coverData = `data:${format};base64,${window.btoa(base64String)}`;
-                            }
-                            const reader = new FileReader(); 
-                            reader.onload = e => res({ 
-                                title: (tag.tags.title || f.name.replace(/\.[^/.]+$/, "")).toUpperCase(), 
-                                trackNum: tag.tags.track || 999,
-                                data: e.target.result 
-                            }); 
-                            reader.readAsArrayBuffer(f); 
-                        }, 
-                        onError: () => { 
-                            const reader = new FileReader(); 
-                            reader.onload = e => res({ 
-                                title: f.name.replace(/\.[^/.]+$/, "").toUpperCase(), 
-                                trackNum: 999,
-                                data: e.target.result 
-                            }); 
-                            reader.readAsArrayBuffer(f); 
-                        } 
-                    }); 
-                }); 
-                tracks.push(track);
-            }
-            tracks.sort((a, b) => a.trackNum - b.trackNum);
-            if(append && curV !== null) { 
-                library[curV].tracks.push(...tracks); 
-                save();
-            } else if (!append) { 
-                db.transaction("projects", "readwrite").objectStore("projects").add({ 
-                    title: albumTitle, 
-                    artist: artistName, 
-                    tracks, 
-                    cover: coverData 
-                }).onsuccess = async e => { 
-                    await sync(e.target.result);
-                }; 
-            }
-        }
-
+        
+        function toggleAudio() { if(!audio.src) return; audio.paused ? audio.play() : audio.pause(); syncUI(); }
+        
         function playTrack(vi, ti) {
-            if (playingProjectId === library[vi].id && curT === ti) {
-                audio.paused ? audio.play() : audio.pause();
-                return;
-            }
-            if(!library[vi] || !library[vi].tracks[ti]) return;
-            initAudio(); curV = vi; curT = ti; playingProjectId = library[vi].id;
+            initAudio();
+            if (playingProjectId === library[vi].id && curT === ti) { toggleAudio(); return; }
+            curV = vi; curT = ti; playingProjectId = library[vi].id;
             if(audio.src) URL.revokeObjectURL(audio.src);
-            audio.src = URL.createObjectURL(new Blob([library[vi].tracks[ti].data])); 
-            audio.play(); 
-            updatePlayerUI(); renderProject(vi); renderSidebar();
+            audio.src = URL.createObjectURL(new Blob([library[vi].tracks[ti].data]));
+            updateFX(); 
+            audio.play(); syncUI();
         }
 
         function toggleMainPlay() {
-            if (playingProjectId === library[curV].id) {
-                audio.paused ? audio.play() : audio.pause();
-            } else {
-                playTrack(curV, 0);
-            }
+            if (playingProjectId && curV !== null && playingProjectId === library[curV].id) toggleAudio();
+            else if (curV !== null && library[curV] && library[curV].tracks.length > 0) playTrack(curV, 0);
         }
 
-        function updatePlayerUI() {
-            const p = library[curV];
-            if(!p) return;
-            document.getElementById('playerBar').style.display = 'flex';
-            document.getElementById('pTrack').innerText = p.tracks[curT] ? p.tracks[curT].title : "---";
-            document.getElementById('pArtist').innerText = p.title;
-            document.getElementById('pThumb').src = p.cover || '';
-            document.getElementById('pThumb').style.display = p.cover ? 'block' : 'none';
-            
+        function syncUI() {
             const isPaused = audio.paused;
             document.getElementById('playBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
-            
-            const bigPlay = document.getElementById('bigPlayBtn');
-            if (playingProjectId === p.id) {
-                bigPlay.innerText = isPaused ? 'play_circle' : 'pause_circle';
-            } else {
-                bigPlay.innerText = 'play_circle';
+            if (curV !== null && library[curV] && playingProjectId === library[curV].id) {
+                document.getElementById('bigPlayBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
             }
-
-            const trackIcons = document.querySelectorAll('.track-play-icon');
-            trackIcons.forEach((icon, idx) => {
-                const isActive = (playingProjectId === p.id && curT === idx);
-                if (isActive) {
-                    icon.innerText = isPaused ? 'play_arrow' : 'pause';
-                } else {
-                    icon.innerText = 'play_arrow';
-                }
+            document.querySelectorAll('.track-play-icon').forEach((icon, i) => {
+                icon.innerText = (playingProjectId === library[curV].id && curT === i && !isPaused) ? 'pause' : 'play_arrow';
             });
-        }
-
-        function prevNext(dir) { 
-            let n = curT + dir; 
-            if(n >= 0 && n < library[curV].tracks.length) {
-                playTrack(curV, n);
-            } else if (n >= library[curV].tracks.length) {
-                playTrack(curV, 0);
-            } else if (n < 0) {
-                playTrack(curV, library[curV].tracks.length - 1);
+            if (playingProjectId) {
+                const p = library.find(x => x.id === playingProjectId);
+                document.getElementById('playerBar').style.display = 'flex';
+                document.getElementById('pTrack').innerText = p.tracks[curT]?.title || "---";
+                document.getElementById('pProj').innerText = p.title;
+                document.getElementById('pThumb').src = p.cover || '';
             }
         }
 
         function renderProject(idx) {
-            if (idx === null || !library[idx]) return;
             curV = idx; const p = library[idx]; showState('vaultState');
-            document.getElementById('vTitle').value = p.title; document.getElementById('vArtist').value = p.artist;
+            document.getElementById('vTitle').value = p.title;
+            document.getElementById('vArtist').value = p.artist;
             document.getElementById('vCover').src = p.cover || '';
             document.getElementById('vCover').style.display = p.cover ? 'block' : 'none';
             document.getElementById('vIcon').style.display = p.cover ? 'none' : 'block';
-            
-            updatePlayerUI();
-
             const list = document.getElementById('trackList'); list.innerHTML = '';
             p.tracks.forEach((t, i) => {
-                const active = playingProjectId===p.id && curT===i;
                 const row = document.createElement('div');
-                row.className = `track-row ${active ? 'active' : ''}`;
-                row.draggable = true;
-                row.dataset.index = i;
-
-                row.ondragstart = (e) => { dragSourceIdx = i; e.target.classList.add('dragging'); };
-                row.ondragover = (e) => { e.preventDefault(); row.classList.add('drag-over'); };
-                row.ondragleave = () => { row.classList.remove('drag-over'); };
-                row.ondrop = (e) => {
-                    e.preventDefault();
-                    row.classList.remove('drag-over');
-                    if (dragSourceIdx !== i && dragSourceIdx !== null) {
-                        const tracks = library[curV].tracks;
-                        const [removed] = tracks.splice(dragSourceIdx, 1);
-                        tracks.splice(i, 0, removed);
-                        if (playingProjectId === library[curV].id && curT === dragSourceIdx) curT = i;
-                        save();
-                    }
-                };
-                row.ondragend = () => { row.classList.remove('dragging'); };
-
+                row.className = `track-row ${ (playingProjectId===p.id && curT===i) ? 'active' : ''}`;
                 row.innerHTML = `
-                    <span class="material-symbols-outlined drag-handle" onclick="event.stopPropagation()">drag_indicator</span>
-                    <span class="material-symbols-outlined track-play-icon" onclick="event.stopPropagation(); playTrack(${idx}, ${i})">${active && !audio.paused ? 'pause' : 'play_arrow'}</span>
-                    <div class="t-name">
-                        <span style="flex-grow:1">${t.title}</span>
-                        <span class="material-symbols-outlined" style="font-size:12px; opacity:0.3;" onclick="event.stopPropagation(); editTrack(${i}, event)">edit</span>
-                    </div>
-                    <span class="material-symbols-outlined" onclick="event.stopPropagation(); removeTrack(${i}, event)">delete</span>
+                    <span class="material-symbols-outlined track-play-icon" style="font-size:18px;">play_arrow</span>
+                    <div style="flex-grow:1"><input type="text" class="track-title-input" value="${t.title}"></div>
+                    <span class="material-symbols-outlined trade-icon">swap_calls</span>
+                    <span class="material-symbols-outlined del-icon" style="font-size:14px; opacity:0.3;">delete</span>
                 `;
                 
+                const input = row.querySelector('.track-title-input');
+                input.onblur = (e) => { updateTrackTitle(i, e.target.value); };
+                input.onclick = (e) => { e.stopPropagation(); };
+
+                row.querySelector('.trade-icon').onclick = (e) => { e.stopPropagation(); tradeIdx=i; document.getElementById('tradeIn').click(); };
+                row.querySelector('.del-icon').onclick = (e) => { e.stopPropagation(); removeTrack(i); };
                 row.onclick = () => playTrack(idx, i);
                 list.appendChild(row);
             });
+            syncUI();
         }
 
-        function editTrack(i, e) { e.stopPropagation(); const title = prompt("TITLE:", library[curV].tracks[i].title); if(title) { library[curV].tracks[i].title = title.toUpperCase(); save(); } }
-        function removeTrack(i, e) { e.stopPropagation(); if(confirm("DELETE?")) { library[curV].tracks.splice(i, 1); save(); } }
-        async function save() { if(curV===null) return; library[curV].title = document.getElementById('vTitle').value.toUpperCase(); library[curV].artist = document.getElementById('vArtist').value.toUpperCase(); db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => { sync(); }; }
-        function renderSidebar() { const s = document.getElementById('sideProjects'); s.innerHTML = ''; library.forEach((p, i) => { const d = document.createElement('div'); d.className = `nav-item ${curV===i?'active':''} ${playingProjectId===p.id?'playing-now':''}`; d.innerHTML = `${p.cover ? `<img src="${p.cover}">` : `<span class="material-symbols-outlined">album</span>`} ${p.title}`; d.onclick = () => renderProject(i); s.appendChild(d); }); }
-        function renderGrid() { const g = document.getElementById('gridItems'); g.innerHTML = ''; library.forEach((p, i) => { const c = document.createElement('div'); c.style.cssText = "border:1px solid #1a1a1a; padding:20px; background:#080808; cursor:pointer;"; c.innerHTML = `${p.cover ? `<img src="${p.cover}" style="width:100%; aspect-ratio:1; object-fit:cover;">` : `<div style="width:100%; aspect-ratio:1; background:#111;"></div>`}<div style="margin-top:10px; font-size:0.6rem;">${p.title}</div>`; c.onclick = () => renderProject(i); g.appendChild(c); }); }
-        
-        function deleteCurrent(e) { 
-            const bypassConfirm = e && e.shiftKey;
-            if(bypassConfirm || confirm("DELETE?")) { 
-                db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => { 
-                    curV=null; sync(); showState('gridState'); 
-                } 
-            } 
+        async function save() { if(curV===null) return; library[curV].title = document.getElementById('vTitle').value.toUpperCase(); library[curV].artist = document.getElementById('vArtist').value.toUpperCase(); db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => sync(); }
+        function updateTrackTitle(ti, val) { library[curV].tracks[ti].title = val.toUpperCase(); save(); }
+        function removeTrack(ti) { library[curV].tracks.splice(ti, 1); save(); }
+        function deleteProject() { if(confirm("DELETE PROJECT?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => { curV=null; sync(); showState('homeState'); }; } }
+
+        function renderSidebar() {
+            const s = document.getElementById('sideProjects'); s.innerHTML = '';
+            library.forEach((p, i) => {
+                const d = document.createElement('div');
+                d.className = `nav-item ${curV===i?'active':''} ${playingProjectId===p.id?'playing-now':''}`;
+                d.innerHTML = `${p.cover ? `<img src="${p.cover}">` : `<span class="material-symbols-outlined">album</span>`} ${p.title}`;
+                d.onclick = () => renderProject(i);
+                s.appendChild(d);
+            });
         }
 
-        const coverArea = document.getElementById('coverDropArea');
-        coverArea.addEventListener('dragover', e => { e.preventDefault(); coverArea.classList.add('drag-over'); });
-        coverArea.addEventListener('dragleave', () => coverArea.classList.remove('drag-over'));
-        coverArea.addEventListener('drop', e => {
-            e.preventDefault();
-            coverArea.classList.remove('drag-over');
-            const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const r = new FileReader();
-                r.onload = ev => { library[curV].cover = ev.target.result; save(); };
-                r.readAsDataURL(file);
-            }
-        });
+        function renderGrid() {
+            const g = document.getElementById('gridItems'); g.innerHTML = '';
+            library.forEach((p, i) => {
+                const c = document.createElement('div');
+                c.style.cssText = "border:1px solid #1a1a1a; padding:20px; background:#080808; cursor:pointer;";
+                c.innerHTML = `<img src="${p.cover || ''}" style="width:100%; aspect-ratio:1; background:#111; object-fit:cover;"><div style="margin-top:10px; font-size:0.6rem;">${p.title}</div>`;
+                c.onclick = () => renderProject(i);
+                g.appendChild(c);
+            });
+        }
 
-        window.onkeydown = e => { if(e.target.tagName !== 'INPUT') { if(e.code === 'Space') { e.preventDefault(); audio.paused ? audio.play() : audio.pause(); } if(e.code === 'ArrowRight') prevNext(1); if(e.code === 'ArrowLeft') prevNext(-1); } };
-        document.getElementById('dropZone').onclick = () => document.getElementById('fileIn').click();
-        ['dragover', 'drop'].forEach(e => document.getElementById('dropZone').addEventListener(e, ev => { ev.preventDefault(); if(e==='drop') handleFiles(ev.dataTransfer.files); }));
-        document.getElementById('fileIn').onchange = e => handleFiles(e.target.files);
-        document.getElementById('appendIn').onchange = e => handleFiles(e.target.files, true);
-        document.getElementById('coverIn').onchange = e => { const r = new FileReader(); r.onload = ev => { library[curV].cover = ev.target.result; save(); }; r.readAsDataURL(e.target.files[0]); };
-        document.getElementById('vTitle').onblur = save; document.getElementById('vArtist').onblur = save;
-        document.getElementById('playBtn').onclick = () => audio.paused ? audio.play() : audio.pause();
-        
-        const sb = document.getElementById('seekBar');
-        sb.onmousedown = () => isScrubbing = true;
-        sb.onmouseup = () => isScrubbing = false;
-        sb.oninput = () => { if(audio.duration) audio.currentTime = (sb.value / 100) * audio.duration; };
-
-        audio.onplay = updatePlayerUI; audio.onpause = updatePlayerUI;
-        audio.ontimeupdate = () => { if(!isScrubbing) sb.value = (audio.currentTime/audio.duration)*100 || 0; };
-        
-        audio.onended = () => {
-            let nextTrack = curT + 1;
-            if(nextTrack < library[curV].tracks.length) {
-                playTrack(curV, nextTrack);
-            } else {
-                playTrack(curV, 0);
+        async function handleFiles(files, append = false) {
+            const tracks = [];
+            for(let f of Array.from(files)) {
+                const data = await f.arrayBuffer();
+                tracks.push({ title: f.name.replace(/\.[^/.]+$/, "").toUpperCase(), data });
             }
+            if(append) { library[curV].tracks.push(...tracks); save(); }
+            else { db.transaction("projects", "readwrite").objectStore("projects").add({ title: "NEW PROJECT", artist: "UNKNOWN", tracks, cover: null }).onsuccess = () => sync(); }
+        }
+
+        document.getElementById('tradeIn').onchange = async (e) => {
+            const f = e.target.files[0];
+            if(f && tradeIdx !== null) {
+                library[curV].tracks[tradeIdx].data = await f.arrayBuffer();
+                if(playingProjectId === library[curV].id && curT === tradeIdx) { audio.src = URL.createObjectURL(new Blob([library[curV].tracks[tradeIdx].data])); audio.play(); }
+                save();
+            }
+            e.target.value = ''; tradeIdx = null;
         };
 
+        const dz = document.getElementById('dropZone');
+        dz.ondragover = e => { e.preventDefault(); dz.style.borderColor = "#ff0436"; };
+        dz.ondragleave = () => dz.style.borderColor = "#555";
+        dz.ondrop = e => { e.preventDefault(); dz.style.borderColor = "#555"; handleFiles(e.dataTransfer.files); };
+
+        function toggleFx() { const p = document.getElementById('fxPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+        function resetFX() { for(let i=1; i<=10; i++) { const s = document.getElementById('f'+i); s.value = s.defaultValue; } updateFX(); }
+        
+        function updateFX() {
+            if(!ctx) return;
+            const v = (id) => parseFloat(document.getElementById(id).value);
+            audio.playbackRate = v('f1');
+            lp.frequency.setTargetAtTime(v('f2'), ctx.currentTime, 0.01);
+            hp.frequency.setTargetAtTime(v('f3'), ctx.currentTime, 0.01);
+            dist.curve = v('f4') > 0 ? makeDistCurve(v('f4')) : null;
+            bass.gain.setTargetAtTime(v('f5'), ctx.currentTime, 0.01);
+            mid.gain.setTargetAtTime(v('f6'), ctx.currentTime, 0.01);
+            treble.gain.setTargetAtTime(v('f7'), ctx.currentTime, 0.01);
+            comp.threshold.setTargetAtTime(v('f8'), ctx.currentTime, 0.01);
+            panner.pan.setTargetAtTime(v('f9'), ctx.currentTime, 0.01);
+            master.gain.setTargetAtTime(v('f10'), ctx.currentTime, 0.01);
+            for(let i=1; i<=10; i++) document.getElementById('v'+i).innerText = document.getElementById('f'+i).value;
+        }
+
+        function makeDistCurve(amount) {
+            let n = 44100, curve = new Float32Array(n);
+            for (let i=0; i<n; i++) { let x = i*2/n-1; curve[i] = (3+amount)*x*Math.PI/(Math.PI+amount*Math.abs(x)); }
+            return curve;
+        }
+
+        function drawVisualizer() {
+            const canvas = document.getElementById('vCanvas'), c = canvas.getContext('2d'), data = new Uint8Array(analyzer.frequencyBinCount);
+            const draw = () => {
+                requestAnimationFrame(draw); analyzer.getByteFrequencyData(data);
+                c.fillStyle = '#080808'; c.fillRect(0,0,canvas.width,canvas.height);
+                for(let i=0; i<canvas.width; i++) {
+                    const h = (data[i]/255)*canvas.height;
+                    c.fillStyle = i%2===0 ? '#ff0436' : '#222';
+                    c.fillRect(i*2, canvas.height-h, 1, h);
+                }
+            }; draw();
+        }
+
+        document.querySelectorAll('#fxPanel input').forEach(i => i.oninput = updateFX);
+        audio.ontimeupdate = () => { document.getElementById('seekBar').value = (audio.currentTime/audio.duration)*100 || 0; };
+        document.getElementById('seekBar').oninput = e => { audio.currentTime = (e.target.value/100) * audio.duration; };
+        audio.onplay = syncUI; audio.onpause = syncUI; audio.onended = () => prevNext(1);
+        function prevNext(dir) { let n = curT + dir; if(library.find(x=>x.id===playingProjectId)?.tracks[n]) playTrack(library.findIndex(x=>x.id===playingProjectId), n); }
+        document.getElementById('fileIn').onchange = e => handleFiles(e.target.files);
+        document.getElementById('appendIn').onchange = e => handleFiles(e.target.files, true);
+        document.getElementById('vTitle').onblur = save; document.getElementById('vArtist').onblur = save;
+        document.getElementById('coverIn').onchange = e => {
+            const f = e.target.files[0], r = new FileReader();
+            r.onload = () => { library[curV].cover = r.result; save(); };
+            if(f) r.readAsDataURL(f);
+        };
+        window.onkeydown = e => { if(e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); toggleAudio(); } };
         openDB().then(() => sync());
     </script>
 </body>
