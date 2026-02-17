@@ -29,6 +29,7 @@
         .cover-col { display: flex; flex-direction: column; align-items: center; gap: 15px; flex-shrink: 0; }
         .cover-art { width: 160px; height: 160px; background: #111; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
         .cover-art img { width: 100%; height: 100%; object-fit: cover; }
+        .cover-art.drag-over { border-color: var(--active); background: #1a0000; }
         .track-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.7rem; color: var(--gray); gap: 15px; cursor: pointer; }
         .track-row:hover { background: #0a0a0a; color: #fff; }
         .track-row.active { color: var(--active); background: #0a0000; }
@@ -87,7 +88,7 @@
             <div class="vault-content">
                 <div class="vault-header">
                     <div class="cover-col">
-                        <div class="cover-art" onclick="document.getElementById('coverIn').click()">
+                        <div id="coverDropArea" class="cover-art" onclick="document.getElementById('coverIn').click()">
                             <img id="vCover" src="" style="display:none;"><span id="vIcon" class="material-symbols-outlined">image</span>
                             <input type="file" id="coverIn" accept="image/*" style="display:none;">
                         </div>
@@ -230,10 +231,7 @@
                 }); 
                 tracks.push(track);
             }
-
-            // Sort by metadata track number
             tracks.sort((a, b) => a.trackNum - b.trackNum);
-
             if(append && curV !== null) { 
                 library[curV].tracks.push(...tracks); 
                 save();
@@ -250,11 +248,17 @@
         }
 
         function playTrack(vi, ti) {
+            // If already playing this track, toggle pause
+            if (playingProjectId === library[vi].id && curT === ti) {
+                audio.paused ? audio.play() : audio.pause();
+                return;
+            }
             if(!library[vi] || !library[vi].tracks[ti]) return;
             initAudio(); curV = vi; curT = ti; playingProjectId = library[vi].id;
             if(audio.src) URL.revokeObjectURL(audio.src);
             audio.src = URL.createObjectURL(new Blob([library[vi].tracks[ti].data])); 
-            audio.play(); updatePlayerUI(); renderProject(vi); renderSidebar();
+            audio.play(); 
+            updatePlayerUI(); renderProject(vi); renderSidebar();
         }
 
         function toggleMainPlay() {
@@ -277,12 +281,24 @@
             const isPaused = audio.paused;
             document.getElementById('playBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
             
+            // Big play btn update
             const bigPlay = document.getElementById('bigPlayBtn');
             if (playingProjectId === p.id) {
                 bigPlay.innerText = isPaused ? 'play_circle' : 'pause_circle';
             } else {
                 bigPlay.innerText = 'play_circle';
             }
+
+            // Sync tracklist icons
+            const trackIcons = document.querySelectorAll('.track-play-icon');
+            trackIcons.forEach((icon, idx) => {
+                const isActive = (playingProjectId === p.id && curT === idx);
+                if (isActive) {
+                    icon.innerText = isPaused ? 'play_arrow' : 'pause';
+                } else {
+                    icon.innerText = 'play_arrow';
+                }
+            });
         }
 
         function prevNext(dir) { 
@@ -320,7 +336,7 @@
                 row.ondrop = (e) => {
                     e.preventDefault();
                     row.classList.remove('drag-over');
-                    if (dragSourceIdx !== i) {
+                    if (dragSourceIdx !== i && dragSourceIdx !== null) {
                         const tracks = library[curV].tracks;
                         const [removed] = tracks.splice(dragSourceIdx, 1);
                         tracks.splice(i, 0, removed);
@@ -332,7 +348,7 @@
 
                 row.innerHTML = `
                     <span class="material-symbols-outlined drag-handle" onclick="event.stopPropagation()">drag_indicator</span>
-                    <span class="material-symbols-outlined" onclick="event.stopPropagation(); playTrack(${idx}, ${i})">${active && !audio.paused ? 'pause' : 'play_arrow'}</span>
+                    <span class="material-symbols-outlined track-play-icon" onclick="event.stopPropagation(); playTrack(${idx}, ${i})">${active && !audio.paused ? 'pause' : 'play_arrow'}</span>
                     <div class="t-name">
                         <span style="flex-grow:1">${t.title}</span>
                         <span class="material-symbols-outlined" style="font-size:12px; opacity:0.3;" onclick="event.stopPropagation(); editTrack(${i}, event)">edit</span>
@@ -340,9 +356,7 @@
                     <span class="material-symbols-outlined" onclick="event.stopPropagation(); removeTrack(${i}, event)">delete</span>
                 `;
                 
-                // Track click to play
                 row.onclick = () => playTrack(idx, i);
-                
                 list.appendChild(row);
             });
         }
@@ -361,6 +375,21 @@
                 } 
             } 
         }
+
+        // Cover Art Drag and Drop Logic
+        const coverArea = document.getElementById('coverDropArea');
+        coverArea.addEventListener('dragover', e => { e.preventDefault(); coverArea.classList.add('drag-over'); });
+        coverArea.addEventListener('dragleave', () => coverArea.classList.remove('drag-over'));
+        coverArea.addEventListener('drop', e => {
+            e.preventDefault();
+            coverArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const r = new FileReader();
+                r.onload = ev => { library[curV].cover = ev.target.result; save(); };
+                r.readAsDataURL(file);
+            }
+        });
 
         window.onkeydown = e => { if(e.target.tagName !== 'INPUT') { if(e.code === 'Space') { e.preventDefault(); audio.paused ? audio.play() : audio.pause(); } if(e.code === 'ArrowRight') prevNext(1); if(e.code === 'ArrowLeft') prevNext(-1); } };
         document.getElementById('dropZone').onclick = () => document.getElementById('fileIn').click();
