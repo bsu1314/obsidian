@@ -70,7 +70,7 @@
             <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100%;">
                 <div id="dropZone" onclick="document.getElementById('fileIn').click()">
                     <span class="material-symbols-outlined" style="font-size:40px;">cloud_upload</span>
-                    <div style="font-size:0.6rem; margin-top:15px;">DROP AUDIO TO SAMPLER</div>
+                    <div style="font-size:0.6rem; margin-top:15px;">DRAG OR DROP FILE OR SELECT FROM DEVICE</div>
                     <input type="file" id="fileIn" multiple accept="audio/*" style="display:none;">
                 </div>
             </div>
@@ -121,7 +121,7 @@
 
     <script>
         let db=null, library=[], curV=null, curT=null, audio=new Audio();
-        let playingProjectId=null, tradeIdx=null;
+        let playingProjectId=null, tradeIdx=null, draggedIdx=null;
         let ctx, source, analyzer, master, panner, lp, hp, dist, bass, mid, treble, comp;
 
         const openDB = () => new Promise(res => {
@@ -204,19 +204,37 @@
             p.tracks.forEach((t, i) => {
                 const row = document.createElement('div');
                 row.className = `track-row ${ (playingProjectId===p.id && curT===i) ? 'active' : ''}`;
+                row.draggable = true;
                 row.innerHTML = `
+                    <span class="material-symbols-outlined" style="font-size:14px; opacity:0.2; cursor:grab;">drag_indicator</span>
                     <span class="material-symbols-outlined track-play-icon" style="font-size:18px;">play_arrow</span>
                     <div style="flex-grow:1"><input type="text" class="track-title-input" value="${t.title}"></div>
                     <span class="material-symbols-outlined trade-icon">swap_calls</span>
                     <span class="material-symbols-outlined del-icon" style="font-size:14px; opacity:0.3;">delete</span>
                 `;
                 
+                row.ondragstart = () => { draggedIdx = i; row.style.opacity = "0.4"; };
+                row.ondragend = () => { draggedIdx = null; row.style.opacity = "1"; document.querySelectorAll('.track-row').forEach(r => r.style.borderTop = "none"); };
+                row.ondragover = e => { e.preventDefault(); if (draggedIdx !== null && draggedIdx !== i) row.style.borderTop = "2px solid var(--active)"; };
+                row.ondragleave = () => row.style.borderTop = "none";
+                row.ondrop = () => {
+                    row.style.borderTop = "none";
+                    if (draggedIdx === null || draggedIdx === i) return;
+                    const movedItem = p.tracks.splice(draggedIdx, 1)[0];
+                    p.tracks.splice(i, 0, movedItem);
+                    if (playingProjectId === p.id) {
+                        if (curT === draggedIdx) curT = i;
+                        else if (draggedIdx < curT && i >= curT) curT--;
+                        else if (draggedIdx > curT && i <= curT) curT++;
+                    }
+                    save();
+                };
+
                 const input = row.querySelector('.track-title-input');
                 input.onblur = (e) => { updateTrackTitle(i, e.target.value); };
                 input.onclick = (e) => { e.stopPropagation(); };
-
                 row.querySelector('.trade-icon').onclick = (e) => { e.stopPropagation(); tradeIdx=i; document.getElementById('tradeIn').click(); };
-                row.querySelector('.del-icon').onclick = (e) => { e.stopPropagation(); removeTrack(i); };
+                row.querySelector('.del-icon').onclick = (e) => { e.stopPropagation(); removeTrack(i, e.shiftKey); };
                 row.onclick = () => playTrack(idx, i);
                 list.appendChild(row);
             });
@@ -225,8 +243,18 @@
 
         async function save() { if(curV===null) return; library[curV].title = document.getElementById('vTitle').value.toUpperCase(); library[curV].artist = document.getElementById('vArtist').value.toUpperCase(); db.transaction("projects", "readwrite").objectStore("projects").put(library[curV]).onsuccess = () => sync(); }
         function updateTrackTitle(ti, val) { library[curV].tracks[ti].title = val.toUpperCase(); save(); }
-        function removeTrack(ti) { library[curV].tracks.splice(ti, 1); save(); }
-        function deleteProject() { if(confirm("DELETE PROJECT?")) { db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => { curV=null; sync(); showState('homeState'); }; } }
+        function removeTrack(ti, skipConfirm) { 
+            if(skipConfirm || confirm("DELETE TRACK?")) {
+                library[curV].tracks.splice(ti, 1); 
+                save(); 
+            }
+        }
+        function deleteProject() { 
+            const skipConfirm = window.event && window.event.shiftKey;
+            if(skipConfirm || confirm("DELETE PROJECT?")) { 
+                db.transaction("projects", "readwrite").objectStore("projects").delete(library[curV].id).onsuccess = () => { curV=null; sync(); showState('homeState'); }; 
+            } 
+        }
 
         function renderSidebar() {
             const s = document.getElementById('sideProjects'); s.innerHTML = '';
