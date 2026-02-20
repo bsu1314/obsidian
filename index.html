@@ -11,10 +11,13 @@
         aside { width: 260px; border-right: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; background: #000; z-index: 10; flex-shrink: 0; }
         #logoBtn { font-weight: bold; margin-bottom: 30px; cursor: pointer; letter-spacing: 2px; color: #fff; font-size: 1.2rem; }
         nav { flex-grow: 1; overflow-y: auto; scrollbar-width: none; }
-        .nav-item { color: var(--gray); display: flex; align-items: center; gap: 10px; font-size: 0.7rem; cursor: pointer; margin-bottom: 15px; transition: 0.2s; }
+        .nav-item { color: var(--gray); display: flex; align-items: center; gap: 10px; font-size: 0.7rem; cursor: pointer; margin-bottom: 15px; transition: 0.2s; padding: 5px; border-radius: 4px; }
         .nav-item:hover, .nav-item.active { color: #fff; }
         .nav-item img { width: 18px; height: 18px; object-fit: cover; border-radius: 2px; }
-        .nav-item.playing-now { color: var(--active) !important; font-weight: bold; border-right: 2px solid var(--active); }
+        
+        /* Sidebar Playing Highlight */
+        .nav-item.playing-now { color: #fff !important; background: rgba(255, 4, 54, 0.15); border-left: 2px solid var(--active); font-weight: bold; }
+        
         #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; }
         .fx-row { margin-bottom: 12px; }
         .fx-row label { font-size: 0.5rem; color: var(--gray); display: flex; justify-content: space-between; margin-bottom: 4px; }
@@ -70,7 +73,7 @@
             <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100%;">
                 <div id="dropZone" onclick="document.getElementById('fileIn').click()">
                     <span class="material-symbols-outlined" style="font-size:40px;">cloud_upload</span>
-                    <div style="font-size:0.6rem; margin-top:15px;">DRAG OR DROP FILE OR SELECT FROM DEVICE</div>
+                    <div style="font-size:0.6rem; margin-top:15px;">DROP AUDIO TO SAMPLER</div>
                     <input type="file" id="fileIn" multiple accept="audio/*" style="display:none;">
                 </div>
             </div>
@@ -178,12 +181,19 @@
         function syncUI() {
             const isPaused = audio.paused;
             document.getElementById('playBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
+            
+            // Fix: Only show playing state on big button if viewing the playing project
+            const bigBtn = document.getElementById('bigPlayBtn');
             if (curV !== null && library[curV] && playingProjectId === library[curV].id) {
-                document.getElementById('bigPlayBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
+                bigBtn.innerText = isPaused ? 'play_circle' : 'pause_circle';
+            } else {
+                bigBtn.innerText = 'play_circle';
             }
+
             document.querySelectorAll('.track-play-icon').forEach((icon, i) => {
                 icon.innerText = (playingProjectId === library[curV].id && curT === i && !isPaused) ? 'pause' : 'play_arrow';
             });
+            
             if (playingProjectId) {
                 const p = library.find(x => x.id === playingProjectId);
                 document.getElementById('playerBar').style.display = 'flex';
@@ -191,6 +201,7 @@
                 document.getElementById('pProj').innerText = p.title;
                 document.getElementById('pThumb').src = p.cover || '';
             }
+            renderSidebar(); // Update sidebar highlight state
         }
 
         function renderProject(idx) {
@@ -260,7 +271,8 @@
             const s = document.getElementById('sideProjects'); s.innerHTML = '';
             library.forEach((p, i) => {
                 const d = document.createElement('div');
-                d.className = `nav-item ${curV===i?'active':''} ${playingProjectId===p.id?'playing-now':''}`;
+                const isPlaying = playingProjectId === p.id;
+                d.className = `nav-item ${curV===i?'active':''} ${isPlaying?'playing-now':''}`;
                 d.innerHTML = `${p.cover ? `<img src="${p.cover}">` : `<span class="material-symbols-outlined">album</span>`} ${p.title}`;
                 d.onclick = () => renderProject(i);
                 s.appendChild(d);
