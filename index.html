@@ -15,7 +15,7 @@
         .nav-item:hover, .nav-item.active { color: #fff; }
         .nav-item img { width: 18px; height: 18px; object-fit: cover; border-radius: 2px; }
         
-        /* Sidebar Playing Highlight */
+  
         .nav-item.playing-now { color: #fff !important; background: rgba(255, 4, 54, 0.15); border-left: 2px solid var(--active); font-weight: bold; }
         
         #fxPanel { display: none; background: #080808; border: 1px solid var(--border); padding: 12px; margin-bottom: 20px; }
@@ -73,7 +73,7 @@
             <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100%;">
                 <div id="dropZone" onclick="document.getElementById('fileIn').click()">
                     <span class="material-symbols-outlined" style="font-size:40px;">cloud_upload</span>
-                    <div style="font-size:0.6rem; margin-top:15px;">DROP AUDIO TO SAMPLER</div>
+                    <div style="font-size:0.6rem; margin-top:15px;">DRAG AND DROP OR SELECT AUDIO FILE</div>
                     <input type="file" id="fileIn" multiple accept="audio/*" style="display:none;">
                 </div>
             </div>
@@ -182,7 +182,7 @@
             const isPaused = audio.paused;
             document.getElementById('playBtn').innerText = isPaused ? 'play_circle' : 'pause_circle';
             
-            // Fix: Only show playing state on big button if viewing the playing project
+         
             const bigBtn = document.getElementById('bigPlayBtn');
             if (curV !== null && library[curV] && playingProjectId === library[curV].id) {
                 bigBtn.innerText = isPaused ? 'play_circle' : 'pause_circle';
@@ -201,7 +201,7 @@
                 document.getElementById('pProj').innerText = p.title;
                 document.getElementById('pThumb').src = p.cover || '';
             }
-            renderSidebar(); // Update sidebar highlight state
+            renderSidebar();
         }
 
         function renderProject(idx) {
